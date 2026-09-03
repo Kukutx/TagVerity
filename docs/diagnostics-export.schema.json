@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/tagverity/diagnostics.schema.json",
+  "title": "TagVerity diagnostics export",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "app",
+    "appVersion",
+    "exportedAt",
+    "supportStatus",
+    "isScanning",
+    "historyCount",
+    "batchCount",
+    "settings",
+    "events"
+  ],
+  "properties": {
+    "schemaVersion": {"const": 2},
+    "app": {"type": "string"},
+    "appVersion": {"type": "string"},
+    "exportedAt": {"type": "string", "format": "date-time"},
+    "supportStatus": {
+      "enum": ["enabled", "disabled", "unsupported", "unknown"]
+    },
+    "isScanning": {"type": "boolean"},
+    "historyCount": {"type": "integer", "minimum": 0},
+    "batchCount": {"type": "integer", "minimum": 0},
+    "settings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "readNdef",
+        "platformSounds",
+        "saveRawUidInHistory",
+        "saveNdefInHistory",
+        "saveTechnicalIdentifiersInHistory",
+        "showAdvancedFields",
+        "scanTimeoutSeconds",
+        "historyLimit"
+      ],
+      "properties": {
+        "readNdef": {"type": "boolean"},
+        "platformSounds": {"type": "boolean"},
+        "saveRawUidInHistory": {"type": "boolean"},
+        "saveNdefInHistory": {"type": "boolean"},
+        "saveTechnicalIdentifiersInHistory": {"type": "boolean"},
+        "showAdvancedFields": {"type": "boolean"},
+        "scanTimeoutSeconds": {"type": "integer", "minimum": 5, "maximum": 120},
+        "historyLimit": {"type": "integer", "minimum": 10, "maximum": 500}
+      }
+    },
+    "events": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {"$ref": "#/$defs/event"}
+    }
+  },
+  "$defs": {
+    "event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["timestamp", "level", "code", "message", "data"],
+      "properties": {
+        "timestamp": {"type": "string", "format": "date-time"},
+        "level": {"enum": ["info", "warning", "error"]},
+        "code": {"type": "string"},
+        "message": {"type": "string"},
+        "data": {
+          "type": "object",
+          "additionalProperties": {
+            "type": ["string", "number", "integer", "boolean", "null"]
+          }
+        }
+      }
+    }
+  }
+}
