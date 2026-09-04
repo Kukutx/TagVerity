@@ -9,7 +9,7 @@
 - [ ] `flutter analyze` reports no issues.
 - [ ] `flutter test` passes.
 - [ ] Export JSON schemas parse successfully and the documented schema version matches `AppConstants.exportSchemaVersion`.
-- [ ] GitHub Actions completes formatting, schema validation, analysis, tests, and Android debug build.
+- [ ] GitHub Actions completes formatting, schema validation, analysis, tests, Android debug build, and unsigned iOS debug compile.
 
 ## Product
 
