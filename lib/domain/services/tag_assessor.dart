@@ -1,5 +1,6 @@
 import '../models/nfc_scan.dart';
 import '../models/tag_assessment.dart';
+import '../models/tag_identity_stability.dart';
 
 abstract final class TagAssessor {
   static TagAssessment assess(NfcScan scan) {
@@ -23,22 +24,32 @@ abstract final class TagAssessor {
       );
     }
 
-    if (scan.uidHex == null) {
-      items.add(
-        const TagCheckItem(
-          title: 'Tag identifier',
-          detail: 'A raw identifier is not available in this view.',
-          state: TagCheckState.info,
-        ),
-      );
-    } else {
-      items.add(
-        const TagCheckItem(
-          title: 'Tag identifier',
-          detail: 'A tag identifier was exposed for this scan.',
-          state: TagCheckState.passed,
-        ),
-      );
+    switch (scan.identityStability) {
+      case TagIdentityStability.stable:
+        items.add(
+          const TagCheckItem(
+            title: 'Tag identity',
+            detail: 'A stable identifier is available for repeat comparison.',
+            state: TagCheckState.passed,
+          ),
+        );
+      case TagIdentityStability.sessionOnly:
+        items.add(
+          const TagCheckItem(
+            title: 'Tag identity',
+            detail:
+                'This platform did not expose a stable identifier. Duplicate checks are unavailable for this scan.',
+            state: TagCheckState.info,
+          ),
+        );
+      case TagIdentityStability.unknown:
+        items.add(
+          const TagCheckItem(
+            title: 'Tag identity',
+            detail: 'Identity stability is unknown for this saved scan.',
+            state: TagCheckState.info,
+          ),
+        );
     }
 
     final String? ndefSupport = scan.details['ndef.supported'];
