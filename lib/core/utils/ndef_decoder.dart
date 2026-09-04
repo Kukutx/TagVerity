@@ -7,6 +7,8 @@ import '../../domain/models/ndef_record_info.dart';
 import 'byte_utils.dart';
 
 abstract final class NdefDecoder {
+  static const int maximumSummaryCharacters = 300;
+
   static List<NdefRecordInfo> decodeMessage(NdefMessage message) {
     return <NdefRecordInfo>[
       for (int index = 0; index < message.records.length; index++)
@@ -23,7 +25,7 @@ abstract final class NdefDecoder {
       identifierHex: ByteUtils.hex(record.identifier),
       payloadLength: record.payload.length,
       byteLength: record.byteLength,
-      summary: _summarize(record, type),
+      summary: _truncate(_summarize(record, type)),
       payloadPreviewHex: ByteUtils.hex(record.payload, maxBytes: 64),
     );
   }
@@ -58,19 +60,32 @@ abstract final class NdefDecoder {
     if (payload.isEmpty) {
       return 'Empty text record';
     }
+
     final int status = payload.first;
     final bool utf16 = (status & 0x80) != 0;
     final int languageLength = status & 0x3F;
     final int textStart = 1 + languageLength;
-    if (textStart > payload.length) {
+    if (languageLength > payload.length - 1 || textStart > payload.length) {
       return 'Invalid text record';
     }
-    final String language = _decodeAscii(payload.sublist(1, textStart));
-    if (utf16) {
-      return 'UTF-16 text${language.isEmpty ? '' : ' [$language]'} '
-          '(${payload.length - textStart} bytes)';
+
+    final String language = _decodeAsciiStrict(payload.sublist(1, textStart));
+    if (languageLength > 0 && language.isEmpty) {
+      return 'Invalid text record';
     }
-    final String text = _decodeUtf8(payload.sublist(textStart));
+
+    final Uint8List textBytes = Uint8List.fromList(payload.sublist(textStart));
+    final String text = utf16
+        ? _decodeUtf16(textBytes)
+        : _decodeUtf8(textBytes);
+    if (textBytes.isNotEmpty && text.isEmpty) {
+      return utf16 ? 'Invalid UTF-16 text record' : 'Invalid UTF-8 text record';
+    }
+    if (text.isEmpty) {
+      return language.isEmpty
+          ? 'Empty text record'
+          : 'Empty text record [$language]';
+    }
     return language.isEmpty ? text : '$text [$language]';
   }
 
@@ -78,8 +93,69 @@ abstract final class NdefDecoder {
     if (payload.isEmpty) {
       return 'Empty URI record';
     }
-    final String prefix = _uriPrefixes[payload.first] ?? '';
-    return '$prefix${_decodeUtf8(payload.sublist(1))}';
+
+    final int prefixCode = payload.first;
+    final String body = _decodeUtf8(payload.sublist(1));
+    if (payload.length > 1 && body.isEmpty) {
+      return 'Invalid URI record';
+    }
+
+    final String? prefix = _uriPrefixes[prefixCode];
+    if (prefix == null) {
+      final String code =
+          '0x${prefixCode.toRadixString(16).padLeft(2, '0').toUpperCase()}';
+      return body.isEmpty
+          ? 'URI with unknown prefix $code'
+          : 'URI with unknown prefix $code: $body';
+    }
+    return '$prefix$body';
+  }
+
+  static String _decodeAsciiStrict(Iterable<int> bytes) {
+    if (bytes.isEmpty) {
+      return '';
+    }
+    try {
+      return ascii.decode(bytes.toList(growable: false));
+    } on FormatException {
+      return '';
+    }
+  }
+
+  static String _decodeUtf16(Uint8List bytes) {
+    if (bytes.isEmpty) {
+      return '';
+    }
+
+    int offset = 0;
+    bool littleEndian = false;
+    if (bytes.length >= 2) {
+      if (bytes[0] == 0xFF && bytes[1] == 0xFE) {
+        littleEndian = true;
+        offset = 2;
+      } else if (bytes[0] == 0xFE && bytes[1] == 0xFF) {
+        offset = 2;
+      }
+    }
+
+    if ((bytes.length - offset).isOdd) {
+      return '';
+    }
+
+    final List<int> codeUnits = <int>[];
+    for (int index = offset; index < bytes.length; index += 2) {
+      final int unit = littleEndian
+          ? bytes[index] | (bytes[index + 1] << 8)
+          : (bytes[index] << 8) | bytes[index + 1];
+      codeUnits.add(unit);
+    }
+
+    try {
+      final String value = String.fromCharCodes(codeUnits).trim();
+      return _isMostlyPrintable(value) ? value : '';
+    } on ArgumentError {
+      return '';
+    }
   }
 
   static String _decodeAscii(Iterable<int> bytes) {
@@ -97,13 +173,33 @@ abstract final class NdefDecoder {
     if (bytes.isEmpty) {
       return '';
     }
-    final String value = utf8
-        .decode(bytes.toList(growable: false), allowMalformed: true)
-        .trim();
-    final bool mostlyPrintable =
-        value.runes.where((int rune) => rune >= 32 || rune == 10).length >=
-        (value.runes.length * 0.8);
-    return mostlyPrintable ? value : '';
+    try {
+      final String value = utf8.decode(bytes.toList(growable: false)).trim();
+      return _isMostlyPrintable(value) ? value : '';
+    } on FormatException {
+      return '';
+    }
+  }
+
+  static bool _isMostlyPrintable(String value) {
+    if (value.isEmpty) {
+      return true;
+    }
+    final List<int> runes = value.runes.toList(growable: false);
+    final int printable = runes
+        .where(
+          (int rune) => rune == 9 || rune == 10 || rune == 13 || rune >= 32,
+        )
+        .length;
+    return printable >= (runes.length * 0.8);
+  }
+
+  static String _truncate(String value) {
+    final List<int> runes = value.runes.toList(growable: false);
+    if (runes.length <= maximumSummaryCharacters) {
+      return value;
+    }
+    return '${String.fromCharCodes(runes.take(maximumSummaryCharacters))}…';
   }
 
   static const Map<int, String> _uriPrefixes = <int, String>{

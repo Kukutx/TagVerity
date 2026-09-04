@@ -2,6 +2,7 @@
 
 ## Android
 
+- Android continuous Batch rearms a new read session after each successful tag and stops on error, timeout, manual stop, batch finish, app backgrounding, or capacity limit.
 - Android generally exposes more NFC tag metadata than iOS.
 - UID and technology availability depend on the phone NFC controller and Android stack.
 - MIFARE Classic support is hardware-dependent; TagVerity reports only what the phone exposes.
@@ -9,8 +10,8 @@
 
 ## iOS
 
-- Core NFC presents the system scan sheet; TagVerity cannot provide Android-style silent continuous polling.
-- iOS may expose fewer tag identifiers and protocol fields than Android.
+- Core NFC presents the system scan sheet; TagVerity cannot provide Android-style silent continuous polling. Continuous Batch on iOS rearms by starting a new Core NFC session, so the system sheet may reopen between tags.
+- iOS may expose fewer tag identifiers and protocol fields than Android. When no stable tag identifier is exposed, TagVerity marks identity as session-only and does not use that fingerprint for duplicate comparison.
 - Missing UID or metadata does not mean the physical tag is empty or defective.
 - A real iPhone, valid signing Team, NFC Tag Reading entitlement, and usage description are required.
 

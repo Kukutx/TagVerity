@@ -20,11 +20,14 @@
 
 ## Batch
 
-- [ ] Start a batch and scan at least five tags.
+- [ ] Start a continuous batch and scan at least five tags without pressing Scan between successful reads.
+- [ ] Stop continuous mode and confirm no additional scans are armed.
+- [ ] Start a manual batch and confirm one-tag-at-a-time scanning still works.
 - [ ] Scan count increments once per successful read.
-- [ ] Re-scan one tag and confirm duplicate detection.
-- [ ] Finish batch without losing results.
-- [ ] Batch CSV copies correctly.
+- [ ] Re-scan a tag with stable identity and confirm duplicate detection.
+- [ ] On a scan where the OS does not expose stable identity, confirm the app marks duplicate comparison unavailable instead of claiming uniqueness.
+- [ ] Finish batch while scanning and confirm the active scan stops without losing completed results.
+- [ ] Batch CSV copies correctly and includes identity stability plus `unknown` duplicate status for session-only identities.
 - [ ] Clear batch removes the in-memory batch result.
 
 ## History & privacy
@@ -48,6 +51,7 @@
 - [ ] NFC system sheet appears correctly.
 - [ ] Successful scan closes with success feedback.
 - [ ] Cancellation/session errors return to usable app state.
+- [ ] Continuous batch mode rearms by reopening the system NFC sheet rather than pretending iOS supports silent polling.
 - [ ] iOS-limited metadata is shown as limited rather than falsely reported as failure.
 
 ## Regression

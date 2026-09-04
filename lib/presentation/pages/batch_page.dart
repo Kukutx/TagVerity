@@ -35,8 +35,36 @@ class BatchPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 14),
                   if (controller.batchSessionActive) ...<Widget>[
+                    const Text(
+                      'Continuous mode automatically rearms after each successful read. '
+                      'On iPhone, the system NFC sheet may reopen between tags.',
+                    ),
+                    const SizedBox(height: 10),
                     FilledButton.icon(
-                      onPressed: controller.isScanning
+                      onPressed: controller.batchAutoContinue
+                          ? () =>
+                                unawaited(controller.stopContinuousBatchScan())
+                          : controller.isScanning
+                          ? null
+                          : () => unawaited(
+                              controller.startContinuousBatchScan(),
+                            ),
+                      icon: Icon(
+                        controller.batchAutoContinue
+                            ? Icons.stop_circle_outlined
+                            : Icons.repeat_rounded,
+                      ),
+                      label: Text(
+                        controller.batchAutoContinue
+                            ? 'Stop continuous scan'
+                            : 'Start continuous scan',
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: controller.batchAutoContinue
+                          ? null
+                          : controller.isScanning
                           ? () => unawaited(controller.stopScan())
                           : () => unawaited(controller.startBatchScan()),
                       icon: controller.isScanning
@@ -47,26 +75,34 @@ class BatchPage extends StatelessWidget {
                           : const Icon(Icons.nfc_rounded),
                       label: Text(
                         controller.isScanning
-                            ? 'Stop scanning'
-                            : 'Scan next tag',
+                            ? 'Stop current scan'
+                            : 'Scan one tag',
                       ),
                     ),
                     const SizedBox(height: 8),
                     OutlinedButton.icon(
-                      onPressed: controller.isScanning
-                          ? null
-                          : controller.finishBatchSession,
+                      onPressed: controller.finishBatchSession,
                       icon: const Icon(Icons.flag_rounded),
                       label: const Text('Finish batch'),
                     ),
-                  ] else
+                  ] else ...<Widget>[
                     FilledButton.icon(
-                      onPressed: controller.startBatchSession,
-                      icon: const Icon(Icons.play_arrow_rounded),
+                      onPressed: () =>
+                          unawaited(controller.startContinuousBatchScan()),
+                      icon: const Icon(Icons.repeat_rounded),
                       label: Text(
-                        scans.isEmpty ? 'Start batch' : 'Start new batch',
+                        scans.isEmpty
+                            ? 'Start continuous batch'
+                            : 'Start new continuous batch',
                       ),
                     ),
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: controller.startBatchSession,
+                      icon: const Icon(Icons.touch_app_rounded),
+                      label: const Text('Start manual batch'),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -135,23 +171,48 @@ class _BatchSummary extends StatelessWidget {
   Widget build(BuildContext context) {
     return SectionCard(
       title: 'Summary',
-      child: Row(
+      child: Column(
         children: <Widget>[
-          _Metric(
-            label: 'Scanned',
-            value: controller.batchScans.length.toString(),
+          Row(
+            children: <Widget>[
+              _Metric(
+                label: 'Scanned',
+                value: controller.batchScans.length.toString(),
+              ),
+              _Metric(
+                label: 'Pass',
+                value: controller.batchHealthyCount.toString(),
+              ),
+              _Metric(
+                label: 'Limited',
+                value: controller.batchLimitedCount.toString(),
+              ),
+              _Metric(
+                label: 'Review',
+                value: controller.batchReviewCount.toString(),
+              ),
+            ],
           ),
-          _Metric(
-            label: 'Unique',
-            value: controller.batchUniqueCount.toString(),
-          ),
-          _Metric(
-            label: 'Duplicates',
-            value: controller.batchDuplicateFingerprints.length.toString(),
-          ),
-          _Metric(
-            label: 'Review',
-            value: controller.batchReviewCount.toString(),
+          const SizedBox(height: 14),
+          Row(
+            children: <Widget>[
+              _Metric(
+                label: 'Comparable',
+                value: controller.batchComparableCount.toString(),
+              ),
+              _Metric(
+                label: 'Distinct IDs',
+                value: controller.batchUniqueCount.toString(),
+              ),
+              _Metric(
+                label: 'Repeated IDs',
+                value: controller.batchDuplicateFingerprints.length.toString(),
+              ),
+              _Metric(
+                label: 'Session-only',
+                value: controller.batchSessionOnlyCount.toString(),
+              ),
+            ],
           ),
         ],
       ),
@@ -196,6 +257,7 @@ class _BatchScanTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final TagAssessment assessment = TagAssessor.assess(scan);
+    final bool comparable = scan.hasComparableIdentity;
     final IconData icon = switch (assessment.status) {
       TagAssessmentStatus.healthy => Icons.check_circle_rounded,
       TagAssessmentStatus.limited => Icons.info_rounded,
@@ -206,8 +268,10 @@ class _BatchScanTile extends StatelessWidget {
       leading: Icon(icon),
       title: Text('Tag ${ByteUtils.shortFingerprint(scan.uidFingerprint)}'),
       subtitle: Text(
-        duplicate
-            ? 'Duplicate in this batch'
+        !comparable
+            ? 'Stable identity unavailable; duplicate check skipped'
+            : duplicate
+            ? 'Repeated identifier in this batch'
             : (scan.technologies.isEmpty
                   ? 'Technology not reported'
                   : scan.technologies.join(', ')),
@@ -215,7 +279,12 @@ class _BatchScanTile extends StatelessWidget {
       trailing: duplicate
           ? const Chip(
               visualDensity: VisualDensity.compact,
-              label: Text('DUPLICATE'),
+              label: Text('REPEATED ID'),
+            )
+          : !comparable
+          ? const Chip(
+              visualDensity: VisualDensity.compact,
+              label: Text('SESSION'),
             )
           : const Icon(Icons.chevron_right_rounded),
       onTap: () {

@@ -1,4 +1,5 @@
 import 'ndef_record_info.dart';
+import 'tag_identity_stability.dart';
 
 class NfcScan {
   const NfcScan({
@@ -11,6 +12,7 @@ class NfcScan {
     required this.ndefRecords,
     required this.warnings,
     this.uidHex,
+    this.identityStability = TagIdentityStability.unknown,
   });
 
   final String id;
@@ -18,10 +20,13 @@ class NfcScan {
   final String platform;
   final String? uidHex;
   final String uidFingerprint;
+  final TagIdentityStability identityStability;
   final List<String> technologies;
   final Map<String, String> details;
   final List<NdefRecordInfo> ndefRecords;
   final List<String> warnings;
+
+  bool get hasComparableIdentity => identityStability.isComparable;
 
   NfcScan copyWith({
     String? id,
@@ -29,6 +34,7 @@ class NfcScan {
     String? platform,
     Object? uidHex = _sentinel,
     String? uidFingerprint,
+    TagIdentityStability? identityStability,
     List<String>? technologies,
     Map<String, String>? details,
     List<NdefRecordInfo>? ndefRecords,
@@ -40,6 +46,7 @@ class NfcScan {
       platform: platform ?? this.platform,
       uidHex: identical(uidHex, _sentinel) ? this.uidHex : uidHex as String?,
       uidFingerprint: uidFingerprint ?? this.uidFingerprint,
+      identityStability: identityStability ?? this.identityStability,
       technologies: technologies ?? this.technologies,
       details: details ?? this.details,
       ndefRecords: ndefRecords ?? this.ndefRecords,
@@ -53,6 +60,7 @@ class NfcScan {
     'platform': platform,
     'uidHex': includeRawUid ? uidHex : null,
     'uidFingerprint': uidFingerprint,
+    'identityStability': identityStability.name,
     'technologies': technologies,
     'details': details,
     'ndefRecords': ndefRecords
@@ -75,6 +83,9 @@ class NfcScan {
       platform: json['platform'] as String? ?? 'unknown',
       uidHex: json['uidHex'] as String?,
       uidFingerprint: json['uidFingerprint'] as String? ?? '',
+      identityStability: _identityStabilityFromJson(
+        json['identityStability'] as String?,
+      ),
       technologies: technologiesValue is List<dynamic>
           ? technologiesValue.whereType<String>().toList(growable: false)
           : const <String>[],
@@ -94,6 +105,15 @@ class NfcScan {
           ? warningsValue.whereType<String>().toList(growable: false)
           : const <String>[],
     );
+  }
+
+  static TagIdentityStability _identityStabilityFromJson(String? value) {
+    for (final TagIdentityStability item in TagIdentityStability.values) {
+      if (item.name == value) {
+        return item;
+      }
+    }
+    return TagIdentityStability.unknown;
   }
 
   static const Object _sentinel = Object();

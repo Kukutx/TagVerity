@@ -1,5 +1,6 @@
 import '../models/nfc_scan.dart';
 import '../models/tag_assessment.dart';
+import '../models/tag_identity_stability.dart';
 
 abstract final class TagAssessor {
   static TagAssessment assess(NfcScan scan) {
@@ -23,25 +24,35 @@ abstract final class TagAssessor {
       );
     }
 
-    if (scan.uidHex == null) {
-      items.add(
-        const TagCheckItem(
-          title: 'Tag identifier',
-          detail: 'A raw identifier is not available in this view.',
-          state: TagCheckState.info,
-        ),
-      );
-    } else {
-      items.add(
-        const TagCheckItem(
-          title: 'Tag identifier',
-          detail: 'A tag identifier was exposed for this scan.',
-          state: TagCheckState.passed,
-        ),
-      );
+    switch (scan.identityStability) {
+      case TagIdentityStability.stable:
+        items.add(
+          const TagCheckItem(
+            title: 'Tag identity',
+            detail: 'A platform-exposed identifier is available for comparison. Some tags can randomize identifiers between scans.',
+            state: TagCheckState.passed,
+          ),
+        );
+      case TagIdentityStability.sessionOnly:
+        items.add(
+          const TagCheckItem(
+            title: 'Tag identity',
+            detail: 'This platform did not expose a stable identifier. Duplicate checks are unavailable for this scan.',
+            state: TagCheckState.info,
+          ),
+        );
+      case TagIdentityStability.unknown:
+        items.add(
+          const TagCheckItem(
+            title: 'Tag identity',
+            detail: 'Identity stability is unknown for this saved scan.',
+            state: TagCheckState.info,
+          ),
+        );
     }
 
     final String? ndefSupport = scan.details['ndef.supported'];
+    final String? ndefReadStatus = scan.details['ndef.readStatus'];
     if (ndefSupport == 'yes') {
       final int recordCount =
           int.tryParse(scan.details['ndef.recordCount'] ?? '') ??
@@ -49,10 +60,18 @@ abstract final class TagAssessor {
       items.add(
         TagCheckItem(
           title: 'NDEF',
-          detail: recordCount == 0
-              ? 'Standard NDEF is available, but no records were found.'
+          detail: ndefReadStatus == 'error'
+              ? 'The NDEF container was detected, but its content could not be read.'
+              : ndefReadStatus == 'disabled'
+              ? 'NDEF is available, but content reading is disabled in Settings.'
+              : recordCount == 0
+              ? 'Standard NDEF is available and currently empty.'
               : '$recordCount standard NDEF record${recordCount == 1 ? '' : 's'} found.',
-          state: recordCount == 0 ? TagCheckState.info : TagCheckState.passed,
+          state: ndefReadStatus == 'error'
+              ? TagCheckState.warning
+              : recordCount == 0
+              ? TagCheckState.info
+              : TagCheckState.passed,
         ),
       );
     } else if (ndefSupport == 'no') {
@@ -87,7 +106,11 @@ abstract final class TagAssessor {
     final bool hasWarnings = items.any(
       (TagCheckItem item) => item.state == TagCheckState.warning,
     );
-    final bool limited = !hasWarnings && ndefSupport == 'no';
+    final bool limited = hasWarnings
+        ? false
+        : ndefSupport == 'no'
+        ? true
+        : ndefReadStatus == 'disabled';
 
     if (hasWarnings) {
       return TagAssessment(

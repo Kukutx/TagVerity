@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tagverity/domain/models/nfc_scan.dart';
 import 'package:tagverity/domain/models/tag_assessment.dart';
+import 'package:tagverity/domain/models/tag_identity_stability.dart';
 import 'package:tagverity/domain/services/tag_assessor.dart';
 
 void main() {
@@ -40,10 +41,67 @@ void main() {
 
     expect(TagAssessor.assess(scan).status, TagAssessmentStatus.limited);
   });
+
+  test('session-only identity is informational rather than review', () {
+    final NfcScan scan = _scan(
+      uidHex: null,
+      identityStability: TagIdentityStability.sessionOnly,
+      details: const <String, String>{
+        'ndef.supported': 'yes',
+        'ndef.readStatus': 'ok',
+        'ndef.recordCount': '1',
+      },
+    );
+
+    final TagAssessment assessment = TagAssessor.assess(scan);
+
+    expect(assessment.status, TagAssessmentStatus.healthy);
+    expect(
+      assessment.items
+          .singleWhere((item) => item.title == 'Tag identity')
+          .state,
+      TagCheckState.info,
+    );
+  });
+
+  test('empty readable NDEF stays healthy', () {
+    final NfcScan scan = _scan(
+      details: const <String, String>{
+        'ndef.supported': 'yes',
+        'ndef.readStatus': 'ok',
+        'ndef.recordCount': '0',
+      },
+    );
+
+    expect(TagAssessor.assess(scan).status, TagAssessmentStatus.healthy);
+  });
+
+  test('disabled NDEF reading is limited', () {
+    final NfcScan scan = _scan(
+      details: const <String, String>{
+        'ndef.supported': 'yes',
+        'ndef.readStatus': 'disabled',
+      },
+    );
+
+    expect(TagAssessor.assess(scan).status, TagAssessmentStatus.limited);
+  });
+
+  test('NDEF read failure needs review', () {
+    final NfcScan scan = _scan(
+      details: const <String, String>{
+        'ndef.supported': 'yes',
+        'ndef.readStatus': 'error',
+      },
+    );
+
+    expect(TagAssessor.assess(scan).status, TagAssessmentStatus.review);
+  });
 }
 
 NfcScan _scan({
   String? uidHex = '04:AA:BB:CC',
+  TagIdentityStability identityStability = TagIdentityStability.stable,
   Map<String, String> details = const <String, String>{'ndef.supported': 'yes'},
   List<String> warnings = const <String>[],
 }) {
@@ -53,6 +111,7 @@ NfcScan _scan({
     platform: 'android',
     uidHex: uidHex,
     uidFingerprint: '0123456789abcdef',
+    identityStability: identityStability,
     technologies: const <String>['NfcA'],
     details: details,
     ndefRecords: const [],

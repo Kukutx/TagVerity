@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../domain/models/ndef_record_info.dart';
 import '../../domain/models/nfc_scan.dart';
 import '../../domain/models/scan_settings.dart';
 import '../../domain/models/tag_fact_catalog.dart';
@@ -34,7 +35,9 @@ final class SharedPreferencesScanHistoryRepository
     final List<NfcScan> migrated = _decodeHistory(legacy)
         .map(
           (NfcScan scan) => scan.copyWith(
+            uidHex: null,
             details: TagFactCatalog.privacyScrubbedDetails(scan.details),
+            ndefRecords: const <NdefRecordInfo>[],
           ),
         )
         .toList(growable: false);

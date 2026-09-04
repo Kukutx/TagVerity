@@ -8,15 +8,19 @@
 - [ ] `dart format --output=none --set-exit-if-changed lib test tool` succeeds.
 - [ ] `flutter analyze` reports no issues.
 - [ ] `flutter test` passes.
+- [ ] Export JSON schemas parse successfully and the documented schema version matches `AppConstants.exportSchemaVersion`.
+- [ ] GitHub Actions completes formatting, schema validation, analysis, tests, Android debug build, and unsigned iOS debug compile.
 
 ## Product
 
 - [ ] Inspect flow reads a known NFC/NDEF test tag.
 - [ ] PASS / LIMITED / REVIEW assessment is sensible on real tags.
-- [ ] Batch mode records multiple tags.
-- [ ] Duplicate tags are detected within a batch.
+- [ ] Manual and continuous Batch modes both record multiple tags.
+- [ ] Continuous Batch stops cleanly on user stop, scan error/timeout, batch finish, app backgrounding, and capacity limit.
+- [ ] Duplicate tags are detected only when a comparable platform identifier is available; session-only scans are reported as not comparable.
 - [ ] History search works.
-- [ ] JSON and batch CSV exports work.
+- [ ] JSON schema-v3 and identity-aware batch CSV exports work.
+- [ ] Native share failures return a visible error instead of crashing the flow.
 - [ ] Raw UID, NDEF, and linkable technical history are off by default.
 
 ## Android

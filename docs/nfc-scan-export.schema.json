@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://example.invalid/tagverity/scan-export.schema.json",
+  "$id": "https://raw.githubusercontent.com/Kukutx/TagVerity/main/docs/nfc-scan-export.schema.json",
   "title": "TagVerity scan export",
   "type": "object",
   "additionalProperties": false,
@@ -13,14 +13,27 @@
     "scans"
   ],
   "properties": {
-    "schemaVersion": {"const": 2},
-    "app": {"type": "string"},
-    "appVersion": {"type": "string"},
-    "exportedAt": {"type": "string", "format": "date-time"},
-    "readOnlyScope": {"const": true},
+    "schemaVersion": {
+      "const": 3
+    },
+    "app": {
+      "type": "string"
+    },
+    "appVersion": {
+      "type": "string"
+    },
+    "exportedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "readOnlyScope": {
+      "const": true
+    },
     "scans": {
       "type": "array",
-      "items": {"$ref": "#/$defs/scan"}
+      "items": {
+        "$ref": "#/$defs/scan"
+      }
     }
   },
   "$defs": {
@@ -33,36 +46,66 @@
         "platform",
         "uidHex",
         "uidFingerprint",
+        "identityStability",
         "technologies",
         "details",
         "ndefRecords",
         "warnings"
       ],
       "properties": {
-        "id": {"type": "string"},
-        "scannedAt": {"type": "string", "format": "date-time"},
-        "platform": {"type": "string"},
-        "uidHex": {"type": ["string", "null"]},
+        "id": {
+          "type": "string"
+        },
+        "scannedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "platform": {
+          "type": "string"
+        },
+        "uidHex": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "uidFingerprint": {
           "type": "string",
           "pattern": "^[0-9a-f]{64}$"
         },
         "technologies": {
           "type": "array",
-          "items": {"type": "string"},
+          "items": {
+            "type": "string"
+          },
           "uniqueItems": true
         },
         "details": {
           "type": "object",
-          "additionalProperties": {"type": "string"}
+          "additionalProperties": {
+            "type": "string"
+          }
         },
         "ndefRecords": {
           "type": "array",
-          "items": {"$ref": "#/$defs/ndefRecord"}
+          "items": {
+            "$ref": "#/$defs/ndefRecord"
+          }
         },
         "warnings": {
           "type": "array",
-          "items": {"type": "string"}
+          "items": {
+            "type": "string"
+          }
+        },
+        "identityStability": {
+          "type": "string",
+          "enum": [
+            "stable",
+            "sessionOnly",
+            "unknown"
+          ],
+          "description": "stable means a platform identifier was exposed for comparison; it is not proof that the physical tag never randomizes its identifier."
         }
       }
     },
@@ -80,14 +123,33 @@
         "payloadPreviewHex"
       ],
       "properties": {
-        "index": {"type": "integer", "minimum": 0},
-        "typeNameFormat": {"type": "string"},
-        "type": {"type": "string"},
-        "identifierHex": {"type": "string"},
-        "payloadLength": {"type": "integer", "minimum": 0},
-        "byteLength": {"type": "integer", "minimum": 0},
-        "summary": {"type": "string"},
-        "payloadPreviewHex": {"type": "string"}
+        "index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "typeNameFormat": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "identifierHex": {
+          "type": "string"
+        },
+        "payloadLength": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "byteLength": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "summary": {
+          "type": "string"
+        },
+        "payloadPreviewHex": {
+          "type": "string"
+        }
       }
     }
   }

@@ -21,9 +21,29 @@ jobs:
         run: flutter pub get
       - name: Confirm formatting
         run: dart format --output=none --set-exit-if-changed lib test tool
+      - name: Validate export schemas
+        run: |
+          python -m json.tool docs/nfc-scan-export.schema.json > /dev/null
+          python -m json.tool docs/diagnostics-export.schema.json > /dev/null
+          python -c "import json,re,pathlib; dart=pathlib.Path('lib/core/constants/app_constants.dart').read_text(); version=int(re.search(r'exportSchemaVersion = (\d+)', dart).group(1)); schema=json.loads(pathlib.Path('docs/nfc-scan-export.schema.json').read_text()); assert schema['properties']['schemaVersion']['const'] == version; defs=schema[chr(36)+'defs']; assert all(set(defs[name]['required']).issubset(set(defs[name]['properties'])) for name in ('scan','ndefRecord')); assert defs['scan']['properties']['identityStability']['enum'] == ['stable','sessionOnly','unknown']"
       - name: Analyze
         run: flutter analyze
       - name: Test
         run: flutter test
       - name: Compile Android debug APK
         run: flutter build apk --debug
+
+  ios-build:
+    needs: analyze-test-build
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          channel: stable
+          cache: true
+      - name: Dependencies
+        run: flutter pub get
+      - name: Compile iOS debug app without signing
+        run: flutter build ios --debug --no-codesign

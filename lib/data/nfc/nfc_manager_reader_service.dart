@@ -16,6 +16,7 @@ import '../../domain/models/ndef_record_info.dart';
 import '../../domain/models/nfc_scan.dart';
 import '../../domain/models/nfc_support_status.dart';
 import '../../domain/models/scan_settings.dart';
+import '../../domain/models/tag_identity_stability.dart';
 import 'nfc_reader_service.dart';
 
 final class NfcManagerReaderService implements NfcReaderService {
@@ -168,16 +169,15 @@ final class NfcManagerReaderService implements NfcReaderService {
       warnings,
     );
 
-    final List<int> fingerprintSource = identifier == null || identifier.isEmpty
-        ? utf8.encode(
-            '${Platform.operatingSystem}|${technologies.join('|')}|'
+    final bool stableIdentity = identifier != null && identifier.isNotEmpty;
+    final List<int> fingerprintSource = stableIdentity
+        ? identifier
+        : utf8.encode(
+            '${Platform.operatingSystem}|${technologies.join("|")}|'
             '${scannedAt.microsecondsSinceEpoch}',
-          )
-        : identifier;
+          );
     final String fingerprint = sha256.convert(fingerprintSource).toString();
-    final String? uidHex = identifier == null || identifier.isEmpty
-        ? null
-        : ByteUtils.hex(identifier);
+    final String? uidHex = stableIdentity ? ByteUtils.hex(identifier) : null;
 
     return NfcScan(
       id: '${scannedAt.microsecondsSinceEpoch}-${fingerprint.substring(0, 12)}',
@@ -185,6 +185,9 @@ final class NfcManagerReaderService implements NfcReaderService {
       platform: Platform.operatingSystem,
       uidHex: uidHex,
       uidFingerprint: fingerprint,
+      identityStability: stableIdentity
+          ? TagIdentityStability.stable
+          : TagIdentityStability.sessionOnly,
       technologies: technologies.toSet().toList(growable: false),
       details: details,
       ndefRecords: ndefRecords,
@@ -337,12 +340,6 @@ final class NfcManagerReaderService implements NfcReaderService {
       );
     }
 
-    if (identifier == null) {
-      warnings.add(
-        'iOS did not expose a tag identifier; this scan fingerprint is session-only.',
-      );
-    }
-
     return _PlatformInspection(identifier: identifier);
   }
 
@@ -356,6 +353,7 @@ final class NfcManagerReaderService implements NfcReaderService {
       final Ndef? ndef = Ndef.from(tag);
       if (ndef == null) {
         details['ndef.supported'] = 'no';
+        details['ndef.readStatus'] = 'not-supported';
         return const <NdefRecordInfo>[];
       }
 
@@ -365,12 +363,15 @@ final class NfcManagerReaderService implements NfcReaderService {
 
       if (!settings.readNdef) {
         details['ndef.readEnabled'] = 'no';
+        details['ndef.readStatus'] = 'disabled';
         return const <NdefRecordInfo>[];
       }
       details['ndef.readEnabled'] = 'yes';
 
       final NdefMessage? message = ndef.cachedMessage ?? await ndef.read();
+      details['ndef.readStatus'] = 'ok';
       if (message == null) {
+        details['ndef.messageLength'] = '0 bytes';
         details['ndef.recordCount'] = '0';
         return const <NdefRecordInfo>[];
       }
@@ -379,6 +380,7 @@ final class NfcManagerReaderService implements NfcReaderService {
       details['ndef.recordCount'] = message.records.length.toString();
       return NdefDecoder.decodeMessage(message);
     } on Object catch (error) {
+      details['ndef.readStatus'] = 'error';
       warnings.add('Could not read standard NDEF: ${_cleanError(error)}');
       return const <NdefRecordInfo>[];
     }
