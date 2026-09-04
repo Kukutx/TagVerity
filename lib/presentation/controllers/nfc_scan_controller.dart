@@ -51,6 +51,7 @@ final class NfcScanController extends ChangeNotifier
   bool _isScanning = false;
   bool _disposed = false;
   bool _batchSessionActive = false;
+  bool _batchAutoContinue = false;
   bool _captureNextScanInBatch = false;
   DateTime? _batchStartedAt;
 
@@ -65,6 +66,7 @@ final class NfcScanController extends ChangeNotifier
   bool get initialized => _initialized;
   bool get isScanning => _isScanning;
   bool get batchSessionActive => _batchSessionActive;
+  bool get batchAutoContinue => _batchAutoContinue;
   DateTime? get batchStartedAt => _batchStartedAt;
 
   TagAssessment? get currentAssessment =>
