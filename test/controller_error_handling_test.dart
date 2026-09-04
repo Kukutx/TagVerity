@@ -34,7 +34,9 @@ void main() {
     expect(controller.isScanning, isFalse);
     expect(controller.errorMessage, 'Scan timed out');
     expect(
-      controller.diagnosticEvents.any((event) => event.code == 'nfc.scan.failed'),
+      controller.diagnosticEvents.any(
+        (event) => event.code == 'nfc.scan.failed',
+      ),
       isTrue,
     );
     controller.dispose();
@@ -62,29 +64,34 @@ void main() {
     controller.dispose();
   });
 
-  test('history persistence failure keeps scan visible and reports error', () async {
-    final _Reader reader = _Reader(scan: _scan());
-    final _MemoryRepository repository = _MemoryRepository(failSaveHistory: true);
-    final NfcScanController controller = NfcScanController(
-      readerService: reader,
-      repository: repository,
-      exportService: _NoopExportService(),
-    );
-    await controller.initialize();
+  test(
+    'history persistence failure keeps scan visible and reports error',
+    () async {
+      final _Reader reader = _Reader(scan: _scan());
+      final _MemoryRepository repository = _MemoryRepository(
+        failSaveHistory: true,
+      );
+      final NfcScanController controller = NfcScanController(
+        readerService: reader,
+        repository: repository,
+        exportService: _NoopExportService(),
+      );
+      await controller.initialize();
 
-    await controller.startScan();
+      await controller.startScan();
 
-    expect(controller.currentScan, isNotNull);
-    expect(controller.history, hasLength(1));
-    expect(controller.errorMessage, contains('Could not save scan history'));
-    expect(
-      controller.diagnosticEvents.any(
-        (event) => event.code == 'storage.history.save.failed',
-      ),
-      isTrue,
-    );
-    controller.dispose();
-  });
+      expect(controller.currentScan, isNotNull);
+      expect(controller.history, hasLength(1));
+      expect(controller.errorMessage, contains('Could not save scan history'));
+      expect(
+        controller.diagnosticEvents.any(
+          (event) => event.code == 'storage.history.save.failed',
+        ),
+        isTrue,
+      );
+      controller.dispose();
+    },
+  );
 }
 
 NfcScanController _controller({required _Reader reader}) {
