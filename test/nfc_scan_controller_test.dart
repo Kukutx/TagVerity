@@ -97,6 +97,34 @@ void main() {
     expect(controller.batchDuplicateFingerprints, isEmpty);
     controller.dispose();
   });
+
+  test('continuous batch rearms after successful scans', () async {
+    final _MemoryRepository repository = _MemoryRepository();
+    final NfcScanController controller = NfcScanController(
+      readerService: _FakeReaderService(<NfcScan>[
+        _scan('scan-1', 'fingerprint-1'),
+        _scan('scan-2', 'fingerprint-2'),
+      ]),
+      repository: repository,
+      exportService: _FakeExportService(),
+    );
+    await controller.initialize();
+
+    await controller.startContinuousBatchScan();
+
+    expect(controller.batchScans, hasLength(1));
+    expect(controller.batchAutoContinue, isTrue);
+
+    await Future<void>.delayed(const Duration(milliseconds: 650));
+
+    expect(controller.batchScans, hasLength(2));
+    expect(controller.batchAutoContinue, isTrue);
+
+    await controller.stopContinuousBatchScan();
+
+    expect(controller.batchAutoContinue, isFalse);
+    controller.dispose();
+  });
 }
 
 NfcScan _scan(
