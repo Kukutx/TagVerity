@@ -1,10 +1,10 @@
 # Scan export format
 
-TagVerity scan/history JSON exports use schema version **2**.
+TagVerity scan/history JSON exports use schema version **3**.
 
 ```json
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "app": "TagVerity",
   "appVersion": "1.0.0",
   "exportedAt": "2026-09-03T12:00:00.000Z",
