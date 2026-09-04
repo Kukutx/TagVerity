@@ -22,7 +22,7 @@ TagVerity has no account system, advertising SDK, analytics SDK, telemetry, netw
 | Selected linkable protocol fields | yes | no | yes |
 | NDEF payload/summary | yes | no | yes |
 
-The settings page provides explicit cleanup actions for saved UID, NDEF, and linkable technical fields.
+The settings page provides explicit cleanup actions for saved UID, NDEF, and linkable technical fields. Legacy pre-TagVerity history is migrated with raw UID, NDEF content, and linkable technical fields removed by default.
 
 ## Batch mode
 
