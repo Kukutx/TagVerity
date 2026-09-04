@@ -218,6 +218,42 @@ final class NfcScanController extends ChangeNotifier
     }
   }
 
+  Future<void> startContinuousBatchScan() async {
+    if (batchAtCapacity) {
+      await startBatchScan();
+      return;
+    }
+    if (!_batchSessionActive) {
+      startBatchSession();
+    }
+    _batchAutoContinue = true;
+    _addDiagnostic(
+      AppDiagnosticLevel.info,
+      'batch.continuous.start',
+      'Continuous batch scanning started',
+    );
+    _notify();
+    await startScan(addToBatch: true);
+  }
+
+  Future<void> stopContinuousBatchScan() async {
+    final bool wasActive = _batchAutoContinue;
+    _batchAutoContinue = false;
+    if (_isScanning && _captureNextScanInBatch) {
+      await stopScan();
+    } else {
+      _notify();
+    }
+    if (wasActive) {
+      _addDiagnostic(
+        AppDiagnosticLevel.info,
+        'batch.continuous.stop',
+        'Continuous batch scanning stopped',
+      );
+      _notify();
+    }
+  }
+
   Future<void> startBatchScan() async {
     if (batchAtCapacity) {
       _errorMessage =
