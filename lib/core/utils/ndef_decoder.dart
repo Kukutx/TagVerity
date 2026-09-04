@@ -89,8 +89,22 @@ abstract final class NdefDecoder {
     if (payload.isEmpty) {
       return 'Empty URI record';
     }
-    final String prefix = _uriPrefixes[payload.first] ?? '';
-    return '$prefix${_decodeUtf8(payload.sublist(1))}';
+
+    final int prefixCode = payload.first;
+    final String body = _decodeUtf8(payload.sublist(1));
+    if (payload.length > 1 && body.isEmpty) {
+      return 'Invalid URI record';
+    }
+
+    final String? prefix = _uriPrefixes[prefixCode];
+    if (prefix == null) {
+      final String code =
+          '0x${prefixCode.toRadixString(16).padLeft(2, '0').toUpperCase()}';
+      return body.isEmpty
+          ? 'URI with unknown prefix $code'
+          : 'URI with unknown prefix $code: $body';
+    }
+    return '$prefix$body';
   }
 
   static String _decodeAscii(Iterable<int> bytes) {
