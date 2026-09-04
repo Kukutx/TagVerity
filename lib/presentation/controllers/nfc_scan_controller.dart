@@ -670,6 +670,7 @@ final class NfcScanController extends ChangeNotifier
         state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached ||
         state == AppLifecycleState.hidden) {
+      _batchAutoContinue = false;
       unawaited(stopScan());
     }
   }
@@ -725,6 +726,7 @@ final class NfcScanController extends ChangeNotifier
 
   @override
   void dispose() {
+    _batchAutoContinue = false;
     _disposed = true;
     WidgetsBinding.instance.removeObserver(this);
     unawaited(_readerService.stopScan());
