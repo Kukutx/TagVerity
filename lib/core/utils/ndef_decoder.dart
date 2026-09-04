@@ -75,12 +75,16 @@ abstract final class NdefDecoder {
     }
 
     final Uint8List textBytes = Uint8List.fromList(payload.sublist(textStart));
-    final String text = utf16 ? _decodeUtf16(textBytes) : _decodeUtf8(textBytes);
+    final String text = utf16
+        ? _decodeUtf16(textBytes)
+        : _decodeUtf8(textBytes);
     if (textBytes.isNotEmpty && text.isEmpty) {
       return utf16 ? 'Invalid UTF-16 text record' : 'Invalid UTF-8 text record';
     }
     if (text.isEmpty) {
-      return language.isEmpty ? 'Empty text record' : 'Empty text record [$language]';
+      return language.isEmpty
+          ? 'Empty text record'
+          : 'Empty text record [$language]';
     }
     return language.isEmpty ? text : '$text [$language]';
   }
