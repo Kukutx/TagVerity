@@ -71,7 +71,9 @@ final class NfcScanController extends ChangeNotifier
 
   Set<String> get batchDuplicateFingerprints {
     final Map<String, int> counts = <String, int>{};
-    for (final NfcScan scan in _batchScans) {
+    for (final NfcScan scan in _batchScans.where(
+      (NfcScan item) => item.hasComparableIdentity,
+    )) {
       counts.update(
         scan.uidFingerprint,
         (int value) => value + 1,
@@ -84,16 +86,32 @@ final class NfcScanController extends ChangeNotifier
         .toSet();
   }
 
-  int get batchUniqueCount =>
-      _batchScans.map((NfcScan scan) => scan.uidFingerprint).toSet().length;
+  int get batchComparableCount =>
+      _batchScans.where((NfcScan scan) => scan.hasComparableIdentity).length;
+
+  int get batchSessionOnlyCount =>
+      _batchScans.where((NfcScan scan) => !scan.hasComparableIdentity).length;
+
+  int get batchUniqueCount => _batchScans
+      .where((NfcScan scan) => scan.hasComparableIdentity)
+      .map((NfcScan scan) => scan.uidFingerprint)
+      .toSet()
+      .length;
 
   int get batchReviewCount => _batchScans.where((NfcScan scan) {
     return TagAssessor.assess(scan).status == TagAssessmentStatus.review;
   }).length;
 
+  int get batchLimitedCount => _batchScans.where((NfcScan scan) {
+    return TagAssessor.assess(scan).status == TagAssessmentStatus.limited;
+  }).length;
+
   int get batchHealthyCount => _batchScans.where((NfcScan scan) {
     return TagAssessor.assess(scan).status == TagAssessmentStatus.healthy;
   }).length;
+
+  bool get batchAtCapacity =>
+      _batchScans.length >= AppConstants.maximumBatchScans;
 
   Future<void> initialize() async {
     _addDiagnostic(
