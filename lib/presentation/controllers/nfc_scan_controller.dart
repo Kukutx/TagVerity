@@ -526,7 +526,7 @@ final class NfcScanController extends ChangeNotifier
         AppDiagnosticLevel.error,
         'storage.history.mutation.failed',
         _errorMessage!,
-        data: <String, Object?>{&action': action},
+        data: <String, Object?>{'action': action},
       );
       _notify();
       return false;
@@ -542,7 +542,7 @@ final class NfcScanController extends ChangeNotifier
         AppDiagnosticLevel.error,
         'storage.history.save.failed',
         _errorMessage!,
-        data: <String, Object?>{&action': action},
+        data: <String, Object?>{'action': action},
       );
       _notify();
     }
