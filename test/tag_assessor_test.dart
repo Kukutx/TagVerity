@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tagverity/domain/models/nfc_scan.dart';
 import 'package:tagverity/domain/models/tag_assessment.dart';
+import 'package:tagverity/domain/models/tag_identity_stability.dart';
 import 'package:tagverity/domain/services/tag_assessor.dart';
 
 void main() {
@@ -44,6 +45,7 @@ void main() {
 
 NfcScan _scan({
   String? uidHex = '04:AA:BB:CC',
+  TagIdentityStability identityStability = TagIdentityStability.stable,
   Map<String, String> details = const <String, String>{'ndef.supported': 'yes'},
   List<String> warnings = const <String>[],
 }) {
@@ -53,6 +55,7 @@ NfcScan _scan({
     platform: 'android',
     uidHex: uidHex,
     uidFingerprint: '0123456789abcdef',
+    identityStability: identityStability,
     technologies: const <String>['NfcA'],
     details: details,
     ndefRecords: const [],
