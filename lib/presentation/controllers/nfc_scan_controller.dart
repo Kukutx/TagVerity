@@ -216,6 +216,18 @@ final class NfcScanController extends ChangeNotifier
   }
 
   Future<void> startBatchScan() async {
+    if (batchAtCapacity) {
+      _errorMessage =
+          'This batch reached the ${AppConstants.maximumBatchScans}-scan limit. Finish or clear it before scanning more tags.';
+      _addDiagnostic(
+        AppDiagnosticLevel.warning,
+        'batch.capacity.reached',
+        _errorMessage!,
+        data: <String, Object?>{'limit': AppConstants.maximumBatchScans},
+      );
+      _notify();
+      return;
+    }
     if (!_batchSessionActive) {
       startBatchSession();
     }
