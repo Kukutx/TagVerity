@@ -41,7 +41,7 @@ TagVerity is developed **core-first**. Reliability, clear NFC semantics, privacy
 ### Quality and platforms
 - [x] Flutter 3.47.1 / Dart 3.13.1 baseline.
 - [x] Android and iOS projects committed and configured for NFC.
-- [x] Automated formatting, analysis, tests, and Android build in GitHub Actions.
+- [x] Automated formatting, schema checks, analysis, tests, Android build, and unsigned iOS compile in GitHub Actions.
 - [x] Unit coverage for decoding, classification, assessment, privacy, and batch identity rules.
 - [ ] Complete the physical-device matrix in `docs/DEVICE_TEST_CHECKLIST.md` on representative Android devices and a signed iPhone build.
 
