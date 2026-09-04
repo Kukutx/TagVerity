@@ -1,6 +1,6 @@
 # TagVerity Privacy Policy
 
-Last updated: 2026-09-03
+Last updated: 2026-09-05
 
 TagVerity is designed to work without an account, analytics, advertising, or background data collection.
 
@@ -10,9 +10,9 @@ TagVerity processes NFC tag information only when you explicitly start a scan an
 
 ## Local storage
 
-Scan history and settings are stored on your device. By default, TagVerity does not save full raw UID values, NDEF content, or linkable technical identifier fields in history. These options can be changed by the user and previously stored sensitive fields can be removed from Settings.
+Scan history and settings are stored on your device. By default, TagVerity does not save full raw UID values, NDEF content, or linkable technical identifier fields in history. These options can be changed by the user and previously stored sensitive fields can be removed from Settings. Legacy pre-TagVerity history is migrated with raw UID, NDEF content, and linkable technical identifier fields removed by default.
 
-A tag fingerprint may be retained locally to distinguish scans and detect duplicates. A fingerprint can still link repeated scans of the same tag and should not be treated as anonymous data.
+A tag fingerprint may be retained locally. When the operating system exposes a comparable identifier, its deterministic fingerprint can correlate that observed identifier across scans and should not be treated as anonymous data. When no comparable identifier is exposed, TagVerity marks the fingerprint as session-only and does not use it to claim duplicate or unique physical tags.
 
 ## Sharing and exports
 
@@ -40,4 +40,4 @@ If TagVerity later adds optional cloud services, accounts, analytics, or other d
 
 ## Contact
 
-Before public store submission, replace this section with the final support email or public support page used for TagVerity.
+For general project support, use the public GitHub Issues page. For security-sensitive reports, use GitHub Private Vulnerability Reporting so sensitive information is not posted publicly.
