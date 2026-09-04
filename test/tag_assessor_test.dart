@@ -41,6 +41,61 @@ void main() {
 
     expect(TagAssessor.assess(scan).status, TagAssessmentStatus.limited);
   });
+
+  test('session-only identity is informational rather than review', () {
+    final NfcScan scan = _scan(
+      uidHex: null,
+      identityStability: TagIdentityStability.sessionOnly,
+      details: const <String, String>{
+        'ndef.supported': 'yes',
+        'ndef.readStatus': 'ok',
+        'ndef.recordCount': '1',
+      },
+    );
+
+    final TagAssessment assessment = TagAssessor.assess(scan);
+
+    expect(assessment.status, TagAssessmentStatus.healthy);
+    expect(
+      assessment.items.singleWhere((item) => item.title == 'Tag identity').state,
+      TagCheckState.info,
+    );
+  });
+
+  test('empty readable NDEF stays healthy', () {
+    final NfcScan scan = _scan(
+      details: const <String, String>{
+        'ndef.supported': 'yes',
+        'ndef.readStatus': 'ok',
+        'ndef.recordCount': '0',
+      },
+    );
+
+    expect(TagAssessor.assess(scan).status, TagAssessmentStatus.healthy);
+  });
+
+  test('disabled NDEF reading is limited', () {
+    final NfcScan scan = _scan(
+      details: const <String, String>{
+        'ndef.supported': 'yes',
+        'ndef.readStatus': 'disabled',
+      },
+    );
+
+    expect(TagAssessor.assess(scan).status, TagAssessmentStatus.limited);
+  });
+
+  test('NDEF read failure needs review', () {
+    final NfcScan scan = _scan(
+      details: const <String, String>{
+        'ndef.supported': 'yes',
+        'ndef.readStatus': 'error',
+      },
+    );
+
+    expect(TagAssessor.assess(scan).status, TagAssessmentStatus.review);
+  });
+
 }
 
 NfcScan _scan({
