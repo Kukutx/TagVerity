@@ -16,6 +16,7 @@ import '../../domain/models/ndef_record_info.dart';
 import '../../domain/models/nfc_scan.dart';
 import '../../domain/models/nfc_support_status.dart';
 import '../../domain/models/scan_settings.dart';
+import '../../domain/models/tag_identity_stability.dart';
 import 'nfc_reader_service.dart';
 
 final class NfcManagerReaderService implements NfcReaderService {
