@@ -4,6 +4,7 @@ import 'package:tagverity/domain/models/ndef_record_info.dart';
 import 'package:tagverity/domain/models/nfc_scan.dart';
 import 'package:tagverity/domain/models/nfc_support_status.dart';
 import 'package:tagverity/domain/models/scan_settings.dart';
+import 'package:tagverity/domain/models/tag_identity_stability.dart';
 import 'package:tagverity/domain/repositories/scan_history_repository.dart';
 import 'package:tagverity/domain/services/export_service.dart';
 import 'package:tagverity/presentation/controllers/nfc_scan_controller.dart';
@@ -66,13 +67,18 @@ void main() {
   });
 }
 
-NfcScan _scan(String id, String fingerprint) {
+NfcScan _scan(
+  String id,
+  String fingerprint, {
+  TagIdentityStability identityStability = TagIdentityStability.stable,
+}) {
   return NfcScan(
     id: id,
     scannedAt: DateTime.utc(2026, 9, 3),
     platform: 'android',
     uidHex: '04:AA:BB:CC',
     uidFingerprint: fingerprint,
+    identityStability: identityStability,
     technologies: const <String>['NfcA'],
     details: const <String, String>{
       'nfca.sak': '0x00',
