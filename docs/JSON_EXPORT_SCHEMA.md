@@ -20,6 +20,7 @@ Each scan contains:
 - `platform`
 - `uidHex`
 - `uidFingerprint`
+- `identityStability` (`stable`, `sessionOnly`, or `unknown`)
 - `technologies`
 - `details` using stable TagVerity fact keys
 - `ndefRecords`
@@ -31,4 +32,4 @@ The formal JSON Schema is `docs/nfc-scan-export.schema.json`.
 
 Current-scan export can contain the raw UID and NDEF content visible on screen. History export contains only what history retained under the user's privacy settings.
 
-Batch CSV is a separate compact QA export and contains scan time, short fingerprint, technologies, NDEF record count, assessment status, warning count, and duplicate flag.
+Batch CSV is a separate compact QA export and contains scan time, short fingerprint, identity stability, technologies, NDEF record count, assessment status, warning count, and duplicate status. Session-only identities export duplicate status as `unknown`.
