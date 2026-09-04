@@ -340,7 +340,6 @@ final class NfcManagerReaderService implements NfcReaderService {
       );
     }
 
-
     return _PlatformInspection(identifier: identifier);
   }
 
