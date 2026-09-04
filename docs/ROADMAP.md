@@ -23,7 +23,7 @@ TagVerity is developed **core-first**. Reliability, clear NFC semantics, privacy
 ### Batch
 - [x] Manual one-tag-at-a-time batch scanning.
 - [x] Continuous batch workflow that rearms after each successful read.
-- [x] Duplicate detection only when a stable identifier is available.
+- [x] Duplicate detection only when a comparable platform identifier is available.
 - [x] Explicit session-only identity count when duplicate comparison is unavailable.
 - [x] PASS / LIMITED / REVIEW batch totals.
 - [x] Capacity guard instead of silently dropping scans.
