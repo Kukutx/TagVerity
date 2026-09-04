@@ -221,6 +221,7 @@ class _BatchScanTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final TagAssessment assessment = TagAssessor.assess(scan);
+    final bool comparable = scan.hasComparableIdentity;
     final IconData icon = switch (assessment.status) {
       TagAssessmentStatus.healthy => Icons.check_circle_rounded,
       TagAssessmentStatus.limited => Icons.info_rounded,
@@ -231,18 +232,25 @@ class _BatchScanTile extends StatelessWidget {
       leading: Icon(icon),
       title: Text('Tag ${ByteUtils.shortFingerprint(scan.uidFingerprint)}'),
       subtitle: Text(
-        duplicate
-            ? 'Duplicate in this batch'
-            : (scan.technologies.isEmpty
-                  ? 'Technology not reported'
-                  : scan.technologies.join(', ')),
+        !comparable
+            ? 'Stable identity unavailable; duplicate check skipped'
+            : duplicate
+                ? 'Duplicate in this batch'
+                : (scan.technologies.isEmpty
+                      ? 'Technology not reported'
+                      : scan.technologies.join(', ')),
       ),
       trailing: duplicate
           ? const Chip(
               visualDensity: VisualDensity.compact,
               label: Text('DUPLICATE'),
             )
-          : const Icon(Icons.chevron_right_rounded),
+          : !comparable
+              ? const Chip(
+                  visualDensity: VisualDensity.compact,
+                  label: Text('SESSION'),
+                )
+              : const Icon(Icons.chevron_right_rounded),
       onTap: () {
         unawaited(
           Navigator.of(context).push<void>(
