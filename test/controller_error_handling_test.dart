@@ -94,23 +94,26 @@ void main() {
     controller.dispose();
   });
 
-  test('successful raw UID scrub updates memory and persistence together', () async {
-    final _MemoryRepository repository = _MemoryRepository(
-      initialHistory: <NfcScan>[_scan()],
-    );
-    final NfcScanController controller = NfcScanController(
-      readerService: _Reader(),
-      repository: repository,
-      exportService: _NoopExportService(),
-    );
-    await controller.initialize();
+  test(
+    'successful raw UID scrub updates memory and persistence together',
+    () async {
+      final _MemoryRepository repository = _MemoryRepository(
+        initialHistory: <NfcScan>[_scan()],
+      );
+      final NfcScanController controller = NfcScanController(
+        readerService: _Reader(),
+        repository: repository,
+        exportService: _NoopExportService(),
+      );
+      await controller.initialize();
 
-    await controller.scrubRawUidsFromHistory();
+      await controller.scrubRawUidsFromHistory();
 
-    expect(controller.history.single.uidHex, isNull);
-    expect(repository.history.single.uidHex, isNull);
-    controller.dispose();
-  });
+      expect(controller.history.single.uidHex, isNull);
+      expect(repository.history.single.uidHex, isNull);
+      controller.dispose();
+    },
+  );
 
   test('failed history clear keeps original history visible', () async {
     final NfcScan original = _scan();
