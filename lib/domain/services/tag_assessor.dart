@@ -53,7 +53,10 @@ abstract final class TagAssessor {
     }
 
     final String? ndefSupport = scan.details['ndef.supported'];
+    final String? ndefReadStatus = scan.details['ndef.readStatus'];
     if (ndefSupport == 'yes') {
+      final bool ndefReadFailed = ndefReadStatus == 'error';
+      final bool ndefReadDisabled = ndefReadStatus == 'disabled';
       final int recordCount =
           int.tryParse(scan.details['ndef.recordCount'] ?? '') ??
           scan.ndefRecords.length;
