@@ -33,6 +33,7 @@
         "platform",
         "uidHex",
         "uidFingerprint",
+        "identityStability",
         "technologies",
         "details",
         "ndefRecords",
