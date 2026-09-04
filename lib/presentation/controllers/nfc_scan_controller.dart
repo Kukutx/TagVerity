@@ -308,11 +308,8 @@ final class NfcScanController extends ChangeNotifier
     _isScanning = false;
     _errorMessage = null;
 
-    if (addToBatch) {
-      _batchScans = <NfcScan>[
-        ..._batchScans,
-        scan,
-      ].take(AppConstants.maximumBatchScans).toList(growable: false);
+    if (addToBatch && !batchAtCapacity) {
+      _batchScans = <NfcScan>[..._batchScans, scan].toList(growable: false);
     }
 
     final NfcScan persisted = scan.copyWith(
