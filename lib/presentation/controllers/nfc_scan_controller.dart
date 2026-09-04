@@ -280,6 +280,7 @@ final class NfcScanController extends ChangeNotifier
       return;
     }
     _batchSessionActive = true;
+    _batchAutoContinue = false;
     _batchScans = const <NfcScan>[];
     _batchStartedAt = DateTime.now();
     _addDiagnostic(
@@ -292,7 +293,11 @@ final class NfcScanController extends ChangeNotifier
 
   void finishBatchSession() {
     _batchSessionActive = false;
+    _batchAutoContinue = false;
     _captureNextScanInBatch = false;
+    if (_isScanning) {
+      unawaited(stopScan());
+    }
     _addDiagnostic(
       AppDiagnosticLevel.info,
       'batch.finish',
@@ -311,6 +316,7 @@ final class NfcScanController extends ChangeNotifier
       await stopScan();
     }
     _batchSessionActive = false;
+    _batchAutoContinue = false;
     _captureNextScanInBatch = false;
     _batchScans = const <NfcScan>[];
     _batchStartedAt = null;
