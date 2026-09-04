@@ -32,3 +32,18 @@ jobs:
         run: flutter test
       - name: Compile Android debug APK
         run: flutter build apk --debug
+
+  ios-build:
+    needs: analyze-test-build
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          channel: stable
+          cache: true
+      - name: Dependencies
+        run: flutter pub get
+      - name: Compile iOS debug app without signing
+        run: flutter build ios --debug --no-codesign
