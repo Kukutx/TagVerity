@@ -235,10 +235,10 @@ class _BatchScanTile extends StatelessWidget {
         !comparable
             ? 'Stable identity unavailable; duplicate check skipped'
             : duplicate
-                ? 'Duplicate in this batch'
-                : (scan.technologies.isEmpty
-                      ? 'Technology not reported'
-                      : scan.technologies.join(', ')),
+            ? 'Duplicate in this batch'
+            : (scan.technologies.isEmpty
+                  ? 'Technology not reported'
+                  : scan.technologies.join(', ')),
       ),
       trailing: duplicate
           ? const Chip(
@@ -246,11 +246,11 @@ class _BatchScanTile extends StatelessWidget {
               label: Text('DUPLICATE'),
             )
           : !comparable
-              ? const Chip(
-                  visualDensity: VisualDensity.compact,
-                  label: Text('SESSION'),
-                )
-              : const Icon(Icons.chevron_right_rounded),
+          ? const Chip(
+              visualDensity: VisualDensity.compact,
+              label: Text('SESSION'),
+            )
+          : const Icon(Icons.chevron_right_rounded),
       onTap: () {
         unawaited(
           Navigator.of(context).push<void>(
