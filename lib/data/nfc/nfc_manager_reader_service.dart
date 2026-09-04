@@ -361,6 +361,7 @@ final class NfcManagerReaderService implements NfcReaderService {
       final Ndef? ndef = Ndef.from(tag);
       if (ndef == null) {
         details['ndef.supported'] = 'no';
+        details['ndef.readStatus'] = 'not-supported';
         return const <NdefRecordInfo>[];
       }
 
@@ -370,12 +371,15 @@ final class NfcManagerReaderService implements NfcReaderService {
 
       if (!settings.readNdef) {
         details['ndef.readEnabled'] = 'no';
+        details['ndef.readStatus'] = 'disabled';
         return const <NdefRecordInfo>[];
       }
       details['ndef.readEnabled'] = 'yes';
 
       final NdefMessage? message = ndef.cachedMessage ?? await ndef.read();
+      details['ndef.readStatus'] = 'ok';
       if (message == null) {
+        details['ndef.messageLength'] = '0 bytes';
         details['ndef.recordCount'] = '0';
         return const <NdefRecordInfo>[];
       }
@@ -384,6 +388,7 @@ final class NfcManagerReaderService implements NfcReaderService {
       details['ndef.recordCount'] = message.records.length.toString();
       return NdefDecoder.decodeMessage(message);
     } on Object catch (error) {
+      details['ndef.readStatus'] = 'error';
       warnings.add('Could not read standard NDEF: ${_cleanError(error)}');
       return const <NdefRecordInfo>[];
     }
