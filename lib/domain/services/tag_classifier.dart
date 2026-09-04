@@ -82,7 +82,8 @@ abstract final class TagClassifier {
     if (scan.technologies.isEmpty) {
       return const TagClassification(
         label: 'Unknown NFC tag',
-        detail: 'The operating system did not expose enough data to classify it.',
+        detail:
+            'The operating system did not expose enough data to classify it.',
         confidence: TagClassificationConfidence.low,
       );
     }
