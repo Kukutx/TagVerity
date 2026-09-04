@@ -5,7 +5,7 @@
 TagVerity only processes NFC tags the user intentionally presents to the phone. A scan may contain:
 
 - raw UID/platform identifier when exposed by the OS;
-- SHA-256 fingerprint derived from the exposed identifier;
+- SHA-256 fingerprint derived from the exposed identifier when one is available, or a session-only fingerprint when the platform exposes no stable identifier;
 - NFC technology and public protocol metadata;
 - standard NDEF record summaries and payload previews;
 - scan time and read warnings.
@@ -26,11 +26,11 @@ The settings page provides explicit cleanup actions for saved UID, NDEF, and lin
 
 ## Batch mode
 
-Batch results are held in application memory for the active app session. They are also saved to normal history using the same privacy policy as single scans. Batch CSV export is an explicit user action.
+Batch results are held in application memory for the active app session. They are also saved to normal history using the same privacy policy as single scans. Duplicate comparison is performed only for scans with a stable platform-exposed identifier; session-only fingerprints are never treated as proof of uniqueness. Batch CSV export is an explicit user action.
 
 ## Fingerprint limitation
 
-A deterministic SHA-256 fingerprint is pseudonymous, not anonymous. If a platform exposes the same UID, the same fingerprint can correlate that tag across scans.
+When the platform exposes a stable identifier, its deterministic SHA-256 fingerprint is pseudonymous, not anonymous, and can correlate that tag across scans. When no stable identifier is exposed, TagVerity marks identity as `sessionOnly`; that fingerprint is not used for duplicate comparison and should not be interpreted as a persistent tag identity.
 
 A future synced/team product should move to tenant-scoped keyed identifiers rather than treating raw SHA-256 as anonymous data.
 
