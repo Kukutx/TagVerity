@@ -20,7 +20,7 @@ Each scan contains:
 - `platform`
 - `uidHex`
 - `uidFingerprint`
-- `identityStability` (`stable`, `sessionOnly`, or `unknown`)
+- `identityStability` (`stable`, `sessionOnly`, or `unknown`); `stable` means a platform identifier was available for comparison, not proof that a physical tag never randomizes its identifier
 - `technologies`
 - `details` using stable TagVerity fact keys
 - `ndefRecords`
