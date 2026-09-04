@@ -29,7 +29,7 @@ abstract final class TagAssessor {
         items.add(
           const TagCheckItem(
             title: 'Tag identity',
-            detail: 'A stable identifier is available for repeat comparison.',
+            detail: 'A platform-exposed identifier is available for comparison. Some tags can randomize identifiers between scans.',
             state: TagCheckState.passed,
           ),
         );
