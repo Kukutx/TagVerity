@@ -135,23 +135,48 @@ class _BatchSummary extends StatelessWidget {
   Widget build(BuildContext context) {
     return SectionCard(
       title: 'Summary',
-      child: Row(
+      child: Column(
         children: <Widget>[
-          _Metric(
-            label: 'Scanned',
-            value: controller.batchScans.length.toString(),
+          Row(
+            children: <Widget>[
+              _Metric(
+                label: 'Scanned',
+                value: controller.batchScans.length.toString(),
+              ),
+              _Metric(
+                label: 'Pass',
+                value: controller.batchHealthyCount.toString(),
+              ),
+              _Metric(
+                label: 'Limited',
+                value: controller.batchLimitedCount.toString(),
+              ),
+              _Metric(
+                label: 'Review',
+                value: controller.batchReviewCount.toString(),
+              ),
+            ],
           ),
-          _Metric(
-            label: 'Unique',
-            value: controller.batchUniqueCount.toString(),
-          ),
-          _Metric(
-            label: 'Duplicates',
-            value: controller.batchDuplicateFingerprints.length.toString(),
-          ),
-          _Metric(
-            label: 'Review',
-            value: controller.batchReviewCount.toString(),
+          const SizedBox(height: 14),
+          Row(
+            children: <Widget>[
+              _Metric(
+                label: 'Comparable',
+                value: controller.batchComparableCount.toString(),
+              ),
+              _Metric(
+                label: 'Unique',
+                value: controller.batchUniqueCount.toString(),
+              ),
+              _Metric(
+                label: 'Duplicates',
+                value: controller.batchDuplicateFingerprints.length.toString(),
+              ),
+              _Metric(
+                label: 'Session-only',
+                value: controller.batchSessionOnlyCount.toString(),
+              ),
+            ],
           ),
         ],
       ),
