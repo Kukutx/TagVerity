@@ -461,7 +461,7 @@ final class NfcScanController extends ChangeNotifier
     if (scan == null) {
       return;
     }
-    await _exportService.shareTextFile(
+    await _shareTextFile(
       filename: 'tagverity-scan-${_timestampForFilename()}.json',
       content: _prettyJson(_exportEnvelope(<NfcScan>[scan])),
       mimeType: 'application/json',
@@ -476,7 +476,7 @@ final class NfcScanController extends ChangeNotifier
   }
 
   Future<void> shareHistoryJson() async {
-    await _exportService.shareTextFile(
+    await _shareTextFile(
       filename: 'tagverity-history-${_timestampForFilename()}.json',
       content: _prettyJson(_exportEnvelope(_history)),
       mimeType: 'application/json',
@@ -489,7 +489,7 @@ final class NfcScanController extends ChangeNotifier
   }
 
   Future<void> shareBatchCsv() async {
-    await _exportService.shareTextFile(
+    await _shareTextFile(
       filename: 'tagverity-batch-${_timestampForFilename()}.csv',
       content: _batchCsv(),
       mimeType: 'text/csv',
@@ -523,6 +523,31 @@ final class NfcScanController extends ChangeNotifier
       );
     }
     return buffer.toString();
+  }
+
+  Future<void> _shareTextFile({
+    required String filename,
+    required String content,
+    required String mimeType,
+    required String subject,
+  }) async {
+    try {
+      await _exportService.shareTextFile(
+        filename: filename,
+        content: content,
+        mimeType: mimeType,
+        subject: subject,
+      );
+    } on Object catch (error) {
+      _errorMessage = 'Could not share report: ${_cleanError(error)}';
+      _addDiagnostic(
+        AppDiagnosticLevel.error,
+        'export.share.failed',
+        _errorMessage!,
+        data: <String, Object?>{'subject': subject},
+      );
+      _notify();
+    }
   }
 
   Future<void> copyDiagnosticsJson() async {
