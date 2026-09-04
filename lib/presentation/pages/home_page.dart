@@ -163,10 +163,7 @@ class _CurrentScanCard extends StatelessWidget {
             value: DateTimeUtils.formatLocal(scan.scannedAt),
           ),
           KeyValueRow(label: 'Type', value: classification.label),
-          KeyValueRow(
-            label: 'Identity',
-            value: scan.identityStability.label,
-          ),
+          KeyValueRow(label: 'Identity', value: scan.identityStability.label),
           KeyValueRow(
             label: 'UID',
             value: scan.uidHex ?? 'Not exposed by this platform',
