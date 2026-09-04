@@ -63,9 +63,13 @@ abstract final class TagAssessor {
       items.add(
         TagCheckItem(
           title: 'NDEF',
-          detail: recordCount == 0
-              ? 'Standard NDEF is available, but no records were found.'
-              : '$recordCount standard NDEF record${recordCount == 1 ? '' : 's'} found.',
+          detail: ndefReadStatus == 'error'
+              ? 'The NDEF container was detected, but its content could not be read.'
+              : ndefReadStatus == 'disabled'
+                  ? 'NDEF is available, but content reading is disabled in Settings.'
+                  : recordCount == 0
+                      ? 'Standard NDEF is available and currently empty.'
+                      : '$recordCount standard NDEF record${recordCount == 1 ? '' : 's'} found.',
           state: recordCount == 0 ? TagCheckState.info : TagCheckState.passed,
         ),
       );
