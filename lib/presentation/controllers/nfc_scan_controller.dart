@@ -399,6 +399,26 @@ final class NfcScanController extends ChangeNotifier
       );
       _notify();
     }
+    if (_batchAutoContinue &&
+        _batchSessionActive &&
+        !batchAtCapacity &&
+        !_disposed) {
+      unawaited(_rearmContinuousBatch());
+    } else if (batchAtCapacity) {
+      _batchAutoContinue = false;
+    }
+  }
+
+  Future<void> _rearmContinuousBatch() async {
+    await Future<void>.delayed(const Duration(milliseconds: 450));
+    if (!_batchAutoContinue ||
+        !_batchSessionActive ||
+        _isScanning ||
+        batchAtCapacity ||
+        _disposed) {
+      return;
+    }
+    await startScan(addToBatch: true);
   }
 
   Future<void> updateSettings(ScanSettings settings) async {
