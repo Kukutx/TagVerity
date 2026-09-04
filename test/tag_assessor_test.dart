@@ -57,7 +57,9 @@ void main() {
 
     expect(assessment.status, TagAssessmentStatus.healthy);
     expect(
-      assessment.items.singleWhere((item) => item.title == 'Tag identity').state,
+      assessment.items
+          .singleWhere((item) => item.title == 'Tag identity')
+          .state,
       TagCheckState.info,
     );
   });
@@ -95,7 +97,6 @@ void main() {
 
     expect(TagAssessor.assess(scan).status, TagAssessmentStatus.review);
   });
-
 }
 
 NfcScan _scan({
