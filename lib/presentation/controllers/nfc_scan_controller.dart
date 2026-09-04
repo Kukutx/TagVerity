@@ -198,6 +198,7 @@ final class NfcScanController extends ChangeNotifier
         settings: _settings,
         onScan: _handleScan,
         onError: (String message) {
+          _batchAutoContinue = false;
           _captureNextScanInBatch = false;
           _isScanning = false;
           _errorMessage = message;
@@ -206,6 +207,7 @@ final class NfcScanController extends ChangeNotifier
         },
       );
     } on Object catch (error) {
+      _batchAutoContinue = false;
       _captureNextScanInBatch = false;
       _isScanning = false;
       _errorMessage ??= 'Could not start scanning: ${_cleanError(error)}';
