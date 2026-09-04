@@ -35,8 +35,37 @@ class BatchPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 14),
                   if (controller.batchSessionActive) ...<Widget>[
+                    const Text(
+                      'Continuous mode automatically rearms after each successful read. '
+                      'On iPhone, the system NFC sheet may reopen between tags.',
+                    ),
+                    const SizedBox(height: 10),
                     FilledButton.icon(
-                      onPressed: controller.isScanning
+                      onPressed: controller.batchAutoContinue
+                          ? () => unawaited(
+                                controller.stopContinuousBatchScan(),
+                              )
+                          : controller.isScanning
+                          ? null
+                          : () => unawaited(
+                                controller.startContinuousBatchScan(),
+                              ),
+                      icon: Icon(
+                        controller.batchAutoContinue
+                            ? Icons.stop_circle_outlined
+                            : Icons.repeat_rounded,
+                      ),
+                      label: Text(
+                        controller.batchAutoContinue
+                            ? 'Stop continuous scan'
+                            : 'Start continuous scan',
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: controller.batchAutoContinue
+                          ? null
+                          : controller.isScanning
                           ? () => unawaited(controller.stopScan())
                           : () => unawaited(controller.startBatchScan()),
                       icon: controller.isScanning
@@ -47,26 +76,34 @@ class BatchPage extends StatelessWidget {
                           : const Icon(Icons.nfc_rounded),
                       label: Text(
                         controller.isScanning
-                            ? 'Stop scanning'
-                            : 'Scan next tag',
+                            ? 'Stop current scan'
+                            : 'Scan one tag',
                       ),
                     ),
                     const SizedBox(height: 8),
                     OutlinedButton.icon(
-                      onPressed: controller.isScanning
-                          ? null
-                          : controller.finishBatchSession,
+                      onPressed: controller.finishBatchSession,
                       icon: const Icon(Icons.flag_rounded),
                       label: const Text('Finish batch'),
                     ),
-                  ] else
+                  ] else ...<Widget>[
                     FilledButton.icon(
-                      onPressed: controller.startBatchSession,
-                      icon: const Icon(Icons.play_arrow_rounded),
+                      onPressed: () =>
+                          unawaited(controller.startContinuousBatchScan()),
+                      icon: const Icon(Icons.repeat_rounded),
                       label: Text(
-                        scans.isEmpty ? 'Start batch' : 'Start new batch',
+                        scans.isEmpty
+                            ? 'Start continuous batch'
+                            : 'Start new continuous batch',
                       ),
                     ),
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: controller.startBatchSession,
+                      icon: const Icon(Icons.touch_app_rounded),
+                      label: const Text('Start manual batch'),
+                    ),
+                  ],
                 ],
               ),
             ),
