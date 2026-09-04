@@ -69,7 +69,10 @@ void main() {
     test('rejects invalid text language length', () {
       final NdefRecord record = _record(type: 'T', payload: <int>[0x3F, 0x65]);
 
-      expect(NdefDecoder.decodeRecord(0, record).summary, 'Invalid text record');
+      expect(
+        NdefDecoder.decodeRecord(0, record).summary,
+        'Invalid text record',
+      );
     });
 
     test('decodes a compressed URI record', () {
@@ -78,7 +81,10 @@ void main() {
         payload: <int>[0x04, ...utf8.encode('example.com')],
       );
 
-      expect(NdefDecoder.decodeRecord(0, record).summary, 'https://example.com');
+      expect(
+        NdefDecoder.decodeRecord(0, record).summary,
+        'https://example.com',
+      );
     });
 
     test('supports the complete NFC Forum URI prefix range', () {
