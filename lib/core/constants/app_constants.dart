@@ -10,7 +10,7 @@ abstract final class AppConstants {
   static const int maximumScanTimeoutSeconds = 120;
   static const int minimumHistoryLimit = 10;
   static const int maximumHistoryLimit = 500;
-  static const int exportSchemaVersion = 2;
+  static const int exportSchemaVersion = 3;
   static const int maximumDiagnosticEvents = 100;
   static const int maximumBatchScans = 1000;
 }
