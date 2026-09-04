@@ -25,7 +25,7 @@ jobs:
         run: |
           python -m json.tool docs/nfc-scan-export.schema.json > /dev/null
           python -m json.tool docs/diagnostics-export.schema.json > /dev/null
-          python -c "import json,re,pathlib; dart=pathlib.Path('lib/core/constants/app_constants.dart').read_text(); version=int(re.search(r'exportSchemaVersion = (\d+)', dart).group(1)); schema=json.loads(pathlib.Path('docs/nfc-scan-export.schema.json').read_text()); assert schema['properties']['schemaVersion']['const'] == version"
+          python -c "import json,re,pathlib; dart=pathlib.Path('lib/core/constants/app_constants.dart').read_text(); version=int(re.search(r'exportSchemaVersion = (\d+)', dart).group(1)); schema=json.loads(pathlib.Path('docs/nfc-scan-export.schema.json').read_text()); assert schema['properties']['schemaVersion']['const'] == version; defs=schema[chr(36)+'defs']; assert all(set(defs[name]['required']).issubset(set(defs[name]['properties'])) for name in ('scan','ndefRecord')); assert defs['scan']['properties']['identityStability']['enum'] == ['stable','sessionOnly','unknown']"
       - name: Analyze
         run: flutter analyze
       - name: Test
