@@ -342,6 +342,7 @@ final class NfcScanController extends ChangeNotifier
         _errorMessage!,
       );
     } finally {
+      _batchAutoContinue = false;
       _captureNextScanInBatch = false;
       _isScanning = false;
       _notify();
