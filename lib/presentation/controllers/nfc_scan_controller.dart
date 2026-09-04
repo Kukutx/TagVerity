@@ -455,53 +455,82 @@ final class NfcScanController extends ChangeNotifier
   }
 
   Future<void> deleteHistoryItem(String id) async {
-    _history = _history
+    final List<NfcScan> nextHistory = _history
         .where((NfcScan scan) => scan.id != id)
         .toList(growable: false);
-    _notify();
-    await _saveHistoryOrReport('Delete history item');
+    await _replaceHistoryPersisted(nextHistory, 'Delete history item');
   }
 
   Future<void> clearHistory() async {
-    _history = const <NfcScan>[];
-    _notify();
     try {
       await _repository.clearHistory();
+      _history = const <NfcScan>[];
+      _notify();
     } on Object catch (error) {
       _errorMessage = 'Could not clear history: ${_cleanError(error)}';
+      _addDiagnostic(
+        AppDiagnosticLevel.error,
+        'storage.history.clear.failed',
+        _errorMessage!,
+      );
       _notify();
     }
   }
 
   Future<void> scrubRawUidsFromHistory() async {
-    _history = _history
+    final List<NfcScan> nextHistory = _history
         .map((NfcScan scan) => scan.copyWith(uidHex: null))
         .toList(growable: false);
-    _notify();
-    await _saveHistoryOrReport('Remove raw identifiers from history');
+    await _replaceHistoryPersisted(
+      nextHistory,
+      'Remove raw identifiers from history',
+    );
   }
 
   Future<void> scrubNdefFromHistory() async {
-    _history = _history
+    final List<NfcScan> nextHistory = _history
         .map(
           (NfcScan scan) =>
               scan.copyWith(ndefRecords: const <NdefRecordInfo>[]),
         )
         .toList(growable: false);
-    _notify();
-    await _saveHistoryOrReport('Remove NDEF from history');
+    await _replaceHistoryPersisted(nextHistory, 'Remove NDEF from history');
   }
 
   Future<void> scrubTechnicalIdentifiersFromHistory() async {
-    _history = _history
+    final List<NfcScan> nextHistory = _history
         .map(
           (NfcScan scan) => scan.copyWith(
             details: TagFactCatalog.privacyScrubbedDetails(scan.details),
           ),
         )
         .toList(growable: false);
-    _notify();
-    await _saveHistoryOrReport('Remove technical identifiers from history');
+    await _replaceHistoryPersisted(
+      nextHistory,
+      'Remove technical identifiers from history',
+    );
+  }
+
+  Future<bool> _replaceHistoryPersisted(
+    List<NfcScan> nextHistory,
+    String action,
+  ) async {
+    try {
+      await _repository.saveHistory(nextHistory);
+      _history = nextHistory;
+      _notify();
+      return true;
+    } on Object catch (error) {
+      _errorMessage = '$action failed: ${_cleanError(error)}';
+      _addDiagnostic(
+        AppDiagnosticLevel.error,
+        'storage.history.mutation.failed',
+        _errorMessage!,
+        data: <String, Object?>{&action': action},
+      );
+      _notify();
+      return false;
+    }
   }
 
   Future<void> _saveHistoryOrReport(String action) async {
@@ -509,6 +538,12 @@ final class NfcScanController extends ChangeNotifier
       await _repository.saveHistory(_history);
     } on Object catch (error) {
       _errorMessage = '$action failed: ${_cleanError(error)}';
+      _addDiagnostic(
+        AppDiagnosticLevel.error,
+        'storage.history.save.failed',
+        _errorMessage!,
+        data: <String, Object?>{&action': action},
+      );
       _notify();
     }
   }
