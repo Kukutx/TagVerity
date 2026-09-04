@@ -347,11 +347,6 @@ final class NfcManagerReaderService implements NfcReaderService {
       );
     }
 
-    if (identifier == null) {
-      warnings.add(
-        'iOS did not expose a tag identifier; this scan fingerprint is session-only.',
-      );
-    }
 
     return _PlatformInspection(identifier: identifier);
   }
