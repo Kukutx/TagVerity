@@ -122,13 +122,33 @@ abstract final class NdefDecoder {
     if (bytes.isEmpty) {
       return '';
     }
-    final String value = utf8
-        .decode(bytes.toList(growable: false), allowMalformed: true)
-        .trim();
-    final bool mostlyPrintable =
-        value.runes.where((int rune) => rune >= 32 || rune == 10).length >=
-        (value.runes.length * 0.8);
-    return mostlyPrintable ? value : '';
+    try {
+      final String value = utf8.decode(bytes.toList(growable: false)).trim();
+      return _isMostlyPrintable(value) ? value : '';
+    } on FormatException {
+      return '';
+    }
+  }
+
+  static bool _isMostlyPrintable(String value) {
+    if (value.isEmpty) {
+      return true;
+    }
+    final List<int> runes = value.runes.toList(growable: false);
+    final int printable = runes
+        .where(
+          (int rune) => rune == 9 || rune == 10 || rune == 13 || rune >= 32,
+        )
+        .length;
+    return printable >= (runes.length * 0.8);
+  }
+
+  static String _truncate(String value) {
+    final List<int> runes = value.runes.toList(growable: false);
+    if (runes.length <= maximumSummaryCharacters) {
+      return value;
+    }
+    return '${String.fromCharCodes(runes.take(maximumSummaryCharacters))}…';
   }
 
   static const Map<int, String> _uriPrefixes = <int, String>{
