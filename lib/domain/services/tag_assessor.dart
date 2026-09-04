@@ -70,7 +70,11 @@ abstract final class TagAssessor {
                   : recordCount == 0
                       ? 'Standard NDEF is available and currently empty.'
                       : '$recordCount standard NDEF record${recordCount == 1 ? '' : 's'} found.',
-          state: recordCount == 0 ? TagCheckState.info : TagCheckState.passed,
+          state: ndefReadStatus == 'error'
+              ? TagCheckState.warning
+              : recordCount == 0
+                  ? TagCheckState.info
+                  : TagCheckState.passed,
         ),
       );
     } else if (ndefSupport == 'no') {
