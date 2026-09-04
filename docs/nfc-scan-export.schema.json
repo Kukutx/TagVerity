@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://example.invalid/tagverity/scan-export.schema.json",
+  "$id": "https://raw.githubusercontent.com/Kukutx/TagVerity/main/docs/nfc-scan-export.schema.json",
   "title": "TagVerity scan export",
   "type": "object",
   "additionalProperties": false,
@@ -13,7 +13,7 @@
     "scans"
   ],
   "properties": {
-    "schemaVersion": {"const": 2},
+    "schemaVersion": {"const": 3},
     "app": {"type": "string"},
     "appVersion": {"type": "string"},
     "exportedAt": {"type": "string", "format": "date-time"},
