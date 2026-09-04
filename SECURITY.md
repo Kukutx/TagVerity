@@ -32,8 +32,8 @@ TagVerity does not implement:
 - Diagnostics are memory-only and redact identifier-like values.
 - No network, analytics, ads, telemetry, or background upload is implemented.
 
-SHA-256 fingerprints are pseudonymous, not anonymous. They can correlate the same exposed UID over time.
+Stable SHA-256 fingerprints are pseudonymous, not anonymous, and can correlate the same exposed UID over time. Session-only fingerprints are marked as such and are not used for duplicate comparison.
 
 ## Reporting security issues
 
-Do not include real sensitive tag payloads, access credentials, or proprietary card secrets in public bug reports. Use redacted diagnostics whenever possible.
+Do not include real sensitive tag payloads, access credentials, signing material, or proprietary card secrets in public bug reports. Use GitHub Private Vulnerability Reporting for security-sensitive issues and redacted diagnostics whenever possible.
