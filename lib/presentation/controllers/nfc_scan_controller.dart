@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/utils/byte_utils.dart';
 import '../../data/nfc/nfc_reader_service.dart';
 import '../../domain/models/diagnostic_event.dart';
 import '../../domain/models/ndef_record_info.dart';
@@ -500,19 +501,24 @@ final class NfcScanController extends ChangeNotifier
     final Set<String> duplicateFingerprints = batchDuplicateFingerprints;
     final StringBuffer buffer = StringBuffer()
       ..writeln(
-        'scanned_at,short_fingerprint,technologies,ndef_records,status,warnings,duplicate',
+        'scanned_at,short_fingerprint,identity_stability,technologies,ndef_records,status,warnings,duplicate',
       );
     for (final NfcScan scan in _batchScans) {
       final TagAssessment assessment = TagAssessor.assess(scan);
       buffer.writeln(
         <String>[
           scan.scannedAt.toUtc().toIso8601String(),
-          scan.uidFingerprint.substring(0, 12),
+          ByteUtils.shortFingerprint(scan.uidFingerprint),
+          scan.identityStability.name,
           scan.technologies.join(' | '),
           scan.ndefRecords.length.toString(),
           assessment.status.name,
           scan.warnings.length.toString(),
-          duplicateFingerprints.contains(scan.uidFingerprint) ? 'yes' : 'no',
+          scan.hasComparableIdentity
+              ? duplicateFingerprints.contains(scan.uidFingerprint)
+                    ? 'yes'
+                    : 'no'
+              : 'unknown',
         ].map(_csv).join(','),
       );
     }
