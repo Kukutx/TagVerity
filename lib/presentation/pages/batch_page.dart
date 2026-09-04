@@ -42,14 +42,13 @@ class BatchPage extends StatelessWidget {
                     const SizedBox(height: 10),
                     FilledButton.icon(
                       onPressed: controller.batchAutoContinue
-                          ? () => unawaited(
-                                controller.stopContinuousBatchScan(),
-                              )
+                          ? () =>
+                                unawaited(controller.stopContinuousBatchScan())
                           : controller.isScanning
                           ? null
                           : () => unawaited(
-                                controller.startContinuousBatchScan(),
-                              ),
+                              controller.startContinuousBatchScan(),
+                            ),
                       icon: Icon(
                         controller.batchAutoContinue
                             ? Icons.stop_circle_outlined
