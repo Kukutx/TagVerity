@@ -1,73 +1,85 @@
 # TagVerity validation report
 
-Validation date: 2026-09-03  
-Version: 1.0.0+1
+Validation date: 2026-09-05  
+App version: 1.0.0+1
 
-## Status
+## Current validation baseline
 
-TagVerity has been converted from the former transport-card inspector prototype into a general-purpose NFC Inspector / Tag Checker / Batch Scanner product.
+TagVerity is a public, privacy-first, read-only NFC Inspector / Tag Checker / Batch Scanner.
 
-### Verified on this Windows development machine
+The project baseline is:
 
-- Flutter 3.47.1 / Dart 3.13.1 from the single configured Flutter SDK.
-- `flutter analyze`: **0 issues**.
-- `flutter test`: **16/16 passed**.
-- Android Kotlin release compilation: passed.
-- Signed Android release APK: passed.
-- Signed Google Play AAB: passed.
-- APK signature verification: passed with APK Signature Scheme v2.
-- AAB JAR signature verification: passed.
-- Android application ID: `dev.kukutx.tagverity`.
-- Version: `1.0.0+1`.
-- Android minSdk: 24.
-- Android targetSdk: 36.
-- Android compileSdk: 36.
-- App label: `TagVerity`.
-- NFC permission and required NFC hardware feature are present.
-- Private upload keystore and `key.properties` are excluded by `.gitignore`.
+- Flutter **3.47.1**
+- Dart **3.13.1**
+- Android application ID: `dev.kukutx.tagverity`
+- Android minSdk: 24
+- Android targetSdk / compileSdk: 36
+- iOS minimum: 13.0
+- One Flutter SDK only; this project does not require FVM or a second SDK.
 
-## Release artifacts
+GitHub Actions is the authoritative software merge gate. The workflow requires:
 
-Local release copies are stored under `dist/`:
+- dependency resolution;
+- Dart formatting;
+- JSON export schema validation, including schema/model version consistency;
+- `flutter analyze`;
+- the complete Flutter test suite;
+- Android debug APK compilation;
+- unsigned iOS debug compilation on macOS.
 
-- `TagVerity-1.0.0-arm64.apk` — 18,151,914 bytes
-- `TagVerity-1.0.0-arm64.aab` — 18,222,476 bytes
+A green CI run does not replace physical NFC hardware testing.
 
-SHA-256:
+## Core behavior covered by code and automated tests
 
-```text
-a655dab8c0b5ddbd018b4e64efae4535e2051cc818a82c18f7835d7987ec40e6  TagVerity-1.0.0-arm64.apk
-f0cf59c23d5273fddaa7812265289c6e1bb8f5cfbd14f0d37fa0199b7aaf514b  TagVerity-1.0.0-arm64.aab
-```
-
-## Product capabilities verified in code/tests
-
-- Single NFC inspection flow.
-- PASS / LIMITED / REVIEW tag assessment.
-- Batch scan session.
-- Duplicate fingerprint detection.
+- Single-tag NFC inspection and availability/error handling.
+- Scan start, stop, timeout/error recovery, and lifecycle-safe cancellation.
+- Conservative NFC tag classification without claiming proprietary application identity.
+- Comparable-ID vs session-only identity semantics.
+- Duplicate/repeated-ID checks only when the platform exposes an identifier that can be compared.
+- Explicit NDEF support, read status, capacity, writable/read-only state, and empty-container handling.
+- NDEF Text and URI decoding, UTF-8/UTF-16 handling, malformed payload handling, unknown URI prefixes, binary payload safety, and bounded summaries.
+- PASS / LIMITED / REVIEW assessment.
+- Manual Batch and continuous Batch scanning.
+- Continuous Batch stop conditions for user stop, errors/timeouts, batch finish, app lifecycle changes, and capacity limit.
+- PASS / LIMITED / REVIEW batch totals plus comparable/session-only identity totals.
+- Identity-aware batch CSV output.
 - Searchable local history.
-- Privacy-scrubbed history defaults.
-- NDEF decoding.
-- JSON export and batch CSV generation.
-- Native Android report sharing compiled in release mode.
-- Android/iOS app icons and TagVerity branding assets present.
+- Privacy-minimized history defaults and privacy-safe migration of legacy history.
+- Transactional history deletion/scrubbing: UI state changes only after persistence succeeds.
+- JSON export schema **v3** and native Android/iOS report sharing with failure reporting.
+- Privacy-safe diagnostics.
 
-## Platform notes
+## Platform validation
 
-Android release builds are currently produced for the `arm64` Flutter runtime to keep builds reliable on this 16 GB development machine. The APK may also contain small auxiliary native libraries for other ABIs from dependencies; the Flutter runtime itself is arm64.
+Android and iOS project files, NFC permissions/entitlements, branding, and native share bridges are committed.
 
-iOS project files, NFC entitlement, usage description, branding, and native report-sharing code are prepared. A real iOS Archive cannot be produced or signed on Windows; final iOS validation requires macOS/Xcode, an Apple signing Team, and an NFC-capable iPhone.
+CI can verify Android compilation and an unsigned iOS build. It cannot verify NFC antenna behavior, OS NFC session UX, device-specific tag support, Apple signing, or store submission.
 
-## Remaining real-world release checks
+The physical-device acceptance matrix is tracked as the `v1.0 Core` release gate in GitHub issue #2 and `docs/DEVICE_TEST_CHECKLIST.md`.
 
-These cannot be truthfully completed without external hardware/store accounts:
+## Previous signed Android build baseline
 
-- Physical Android NFC scan regression on representative tags.
-- Physical iPhone NFC regression and Xcode Archive.
-- Google Play Console upload, store screenshots, support URL, and privacy-policy URL.
-- App Store Connect upload and review metadata.
+The following signed files were produced locally on **2026-09-03**, before the core-foundation` work:
 
-## Known toolchain warning
+- `TagVerity-1.0.0-arm64.apk`
+- `TagVerity-1.0.0-arm64.aab`
 
-Flutter 3.47.1 reports that the current `nfc_manager` plugin still applies the Kotlin Gradle Plugin directly and will need migration to Flutter's future Built-in Kotlin model. The dependency is currently the latest resolvable direct dependency for this project and Android release builds succeed today. Recheck this warning on future Flutter upgrades.
+Those files proved that Android release signing and packaging worked on the development machine, but they **must not be treated as containing the current core-foundation changes**. Rebuild signed release artifacts from merged `main` before any store upload.
+
+The private upload keystore and `android/key.properties` remain local and are excluded from Git.
+
+## Remaining v1.0 release gates
+
+These require hardware, signing identities, or store accounts and therefore cannot be completed by repository CI alone:
+
+- Complete the physical Android NFC matrix in issue #2.
+- Complete the physical iPhone NFC matrix using a signed build.
+- Produce a fresh signed Android APK/AAB from merged `main`.
+- Produce a signed iOS Archive on macOS/Xcode.
+- Complete Google Play / App Store listing assets and submission metadata.
+
+## Scope boundary
+
+TagVerity remains intentionally read-only. The core project does not include NFC writing/formatting, UID spoofing/cloning, key recovery, relay/replay tooling, protected-memory extraction, or an arbitrary APDU console.
+
+For the current product plan, see `docs/ROADMAP.md`. For privacy behavior, see `PRIVACY_POLICY.md` and `docs/PRIVACY_MODEL.md`.
