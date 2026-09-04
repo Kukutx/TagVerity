@@ -109,7 +109,11 @@ abstract final class TagAssessor {
     final bool hasWarnings = items.any(
       (TagCheckItem item) => item.state == TagCheckState.warning,
     );
-    final bool limited = !hasWarnings && ndefSupport == 'no';
+    final bool limited = hasWarnings
+        ? false
+        : ndefSupport == 'no'
+            ? true
+            : ndefReadStatus == 'disabled';
 
     if (hasWarnings) {
       return TagAssessment(
