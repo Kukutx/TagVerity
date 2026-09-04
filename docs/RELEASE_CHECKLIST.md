@@ -17,7 +17,7 @@
 - [ ] PASS / LIMITED / REVIEW assessment is sensible on real tags.
 - [ ] Manual and continuous Batch modes both record multiple tags.
 - [ ] Continuous Batch stops cleanly on user stop, scan error/timeout, batch finish, app backgrounding, and capacity limit.
-- [ ] Duplicate tags are detected only when a stable identity is available; session-only scans are reported as not comparable.
+- [ ] Duplicate tags are detected only when a comparable platform identifier is available; session-only scans are reported as not comparable.
 - [ ] History search works.
 - [ ] JSON schema-v3 and identity-aware batch CSV exports work.
 - [ ] Native share failures return a visible error instead of crashing the flow.
