@@ -7,6 +7,8 @@ import '../../domain/models/ndef_record_info.dart';
 import 'byte_utils.dart';
 
 abstract final class NdefDecoder {
+  static const int maximumSummaryCharacters = 300;
+
   static List<NdefRecordInfo> decodeMessage(NdefMessage message) {
     return <NdefRecordInfo>[
       for (int index = 0; index < message.records.length; index++)
@@ -23,7 +25,7 @@ abstract final class NdefDecoder {
       identifierHex: ByteUtils.hex(record.identifier),
       payloadLength: record.payload.length,
       byteLength: record.byteLength,
-      summary: _summarize(record, type),
+      summary: _truncate(_summarize(record, type)),
       payloadPreviewHex: ByteUtils.hex(record.payload, maxBytes: 64),
     );
   }
