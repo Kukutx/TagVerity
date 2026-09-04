@@ -30,7 +30,7 @@ Batch results are held in application memory for the active app session. They ar
 
 ## Fingerprint limitation
 
-When the platform exposes a stable identifier, its deterministic SHA-256 fingerprint is pseudonymous, not anonymous, and can correlate that tag across scans. When no stable identifier is exposed, TagVerity marks identity as `sessionOnly`; that fingerprint is not used for duplicate comparison and should not be interpreted as a persistent tag identity.
+When the platform exposes a comparable identifier, its deterministic SHA-256 fingerprint is pseudonymous, not anonymous, and can correlate that observed identifier across scans. Some NFC tags can randomize identifiers, so distinct IDs are not proof of distinct physical tags. When no stable identifier is exposed, TagVerity marks identity as `sessionOnly`; that fingerprint is not used for duplicate comparison and should not be interpreted as a persistent tag identity.
 
 A future synced/team product should move to tenant-scoped keyed identifiers rather than treating raw SHA-256 as anonymous data.
 
