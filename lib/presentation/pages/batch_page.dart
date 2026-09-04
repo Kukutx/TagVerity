@@ -201,11 +201,11 @@ class _BatchSummary extends StatelessWidget {
                 value: controller.batchComparableCount.toString(),
               ),
               _Metric(
-                label: 'Unique',
+                label: 'Distinct IDs',
                 value: controller.batchUniqueCount.toString(),
               ),
               _Metric(
-                label: 'Duplicates',
+                label: 'Repeated IDs',
                 value: controller.batchDuplicateFingerprints.length.toString(),
               ),
               _Metric(
@@ -271,7 +271,7 @@ class _BatchScanTile extends StatelessWidget {
         !comparable
             ? 'Stable identity unavailable; duplicate check skipped'
             : duplicate
-            ? 'Duplicate in this batch'
+            ? 'Repeated identifier in this batch'
             : (scan.technologies.isEmpty
                   ? 'Technology not reported'
                   : scan.technologies.join(', ')),
@@ -279,7 +279,7 @@ class _BatchScanTile extends StatelessWidget {
       trailing: duplicate
           ? const Chip(
               visualDensity: VisualDensity.compact,
-              label: Text('DUPLICATE'),
+              label: Text('REPEATED ID'),
             )
           : !comparable
           ? const Chip(
