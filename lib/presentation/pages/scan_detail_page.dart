@@ -9,8 +9,8 @@ import '../../domain/models/ndef_record_info.dart';
 import '../../domain/models/nfc_scan.dart';
 import '../../domain/models/tag_fact_catalog.dart';
 import '../../domain/models/tag_identity_stability.dart';
-import '../../domain/services/tag_classifier.dart';
 import '../../domain/services/tag_assessor.dart';
+import '../../domain/services/tag_classifier.dart';
 import '../widgets/key_value_row.dart';
 import '../widgets/section_card.dart';
 import '../widgets/tag_assessment_card.dart';
@@ -94,7 +94,7 @@ class ScanDetailPage extends StatelessWidget {
           SectionCard(
             title: 'Classification',
             child: Column(
-              crossAxignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 KeyValueRow(label: 'Likely type', value: classification.label),
                 const SizedBox(height: 8),
