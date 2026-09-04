@@ -176,9 +176,15 @@ final class NfcManagerReaderService implements NfcReaderService {
           )
         : identifier;
     final String fingerprint = sha256.convert(fingerprintSource).toString();
-    final String? uidHex = identifier == null || identifier.isEmpty
-        ? null
-        : ByteUtils.hex(identifier);
+    final String? uidHex = identifier == null ||    final bool stableIdentity = identifier != null && identifier.isNotEmpty;
+    final List<int> fingerprintSource = stableIdentity
+        ? identifier
+        : utf8.encode(
+            '${Platform.operatingSystem}|${technologies.join("|")}|'
+            '${scannedAt.microsecondsSinceEpoch}',
+          );
+    final String fingerprint = sha256.convert(fingerprintSource).toString();
+    final String? uidHex = stableIdentity ? ByteUtils.hex(identifier) : null;
 
     return NfcScan(
       id: '${scannedAt.microsecondsSinceEpoch}-${fingerprint.substring(0, 12)}',
@@ -186,6 +192,9 @@ final class NfcManagerReaderService implements NfcReaderService {
       platform: Platform.operatingSystem,
       uidHex: uidHex,
       uidFingerprint: fingerprint,
+      identityStability: stableIdentity
+          ? TagIdentityStability.stable
+          : TagIdentityStability.sessionOnly,
       technologies: technologies.toSet().toList(growable: false),
       details: details,
       ndefRecords: ndefRecords,
