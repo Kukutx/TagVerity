@@ -60,19 +60,28 @@ abstract final class NdefDecoder {
     if (payload.isEmpty) {
       return 'Empty text record';
     }
+
     final int status = payload.first;
     final bool utf16 = (status & 0x80) != 0;
     final int languageLength = status & 0x3F;
     final int textStart = 1 + languageLength;
-    if (textStart > payload.length) {
+    if (languageLength > payload.length - 1 || textStart > payload.length) {
       return 'Invalid text record';
     }
-    final String language = _decodeAscii(payload.sublist(1, textStart));
-    if (utf16) {
-      return 'UTF-16 text${language.isEmpty ? '' : ' [$language]'} '
-          '(${payload.length - textStart} bytes)';
+
+    final String language = _decodeAsciiStrict(payload.sublist(1, textStart));
+    if (languageLength > 0 && language.isEmpty) {
+      return 'Invalid text record';
     }
-    final String text = _decodeUtf8(payload.sublist(textStart));
+
+    final Uint8List textBytes = Uint8List.fromList(payload.sublist(textStart));
+    final String text = utf16 ? _decodeUtf16(textBytes) : _decodeUtf8(textBytes);
+    if (textBytes.isNotEmpty && text.isEmpty) {
+      return utf16 ? 'Invalid UTF-16 text record' : 'Invalid UTF-8 text record';
+    }
+    if (text.isEmpty) {
+      return language.isEmpty ? 'Empty text record' : 'Empty text record [$language]';
+    }
     return language.isEmpty ? text : '$text [$language]';
   }
 
