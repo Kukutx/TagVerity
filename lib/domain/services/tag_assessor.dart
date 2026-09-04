@@ -37,8 +37,7 @@ abstract final class TagAssessor {
         items.add(
           const TagCheckItem(
             title: 'Tag identity',
-            detail:
-                'This platform did not expose a stable identifier. Duplicate checks are unavailable for this scan.',
+            detail: 'This platform did not expose a stable identifier. Duplicate checks are unavailable for this scan.',
             state: TagCheckState.info,
           ),
         );
@@ -66,15 +65,15 @@ abstract final class TagAssessor {
           detail: ndefReadStatus == 'error'
               ? 'The NDEF container was detected, but its content could not be read.'
               : ndefReadStatus == 'disabled'
-                  ? 'NDEF is available, but content reading is disabled in Settings.'
-                  : recordCount == 0
-                      ? 'Standard NDEF is available and currently empty.'
-                      : '$recordCount standard NDEF record${recordCount == 1 ? '' : 's'} found.',
+              ? 'NDEF is available, but content reading is disabled in Settings.'
+              : recordCount == 0
+              ? 'Standard NDEF is available and currently empty.'
+              : '$recordCount standard NDEF record${recordCount == 1 ? '' : 's'} found.',
           state: ndefReadStatus == 'error'
               ? TagCheckState.warning
               : recordCount == 0
-                  ? TagCheckState.info
-                  : TagCheckState.passed,
+              ? TagCheckState.info
+              : TagCheckState.passed,
         ),
       );
     } else if (ndefSupport == 'no') {
@@ -112,8 +111,8 @@ abstract final class TagAssessor {
     final bool limited = hasWarnings
         ? false
         : ndefSupport == 'no'
-            ? true
-            : ndefReadStatus == 'disabled';
+        ? true
+        : ndefReadStatus == 'disabled';
 
     if (hasWarnings) {
       return TagAssessment(
