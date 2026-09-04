@@ -6,7 +6,9 @@ import 'package:tagverity/domain/services/tag_classifier.dart';
 void main() {
   test('classifies explicit MIFARE Classic metadata with high confidence', () {
     final TagClassification result = TagClassifier.classify(
-      _scan(details: const <String, String>{'mifare.classic.type': 'classic1k'}),
+      _scan(
+        details: const <String, String>{'mifare.classic.type': 'classic1k'},
+      ),
     );
 
     expect(result.label, 'MIFARE Classic');
