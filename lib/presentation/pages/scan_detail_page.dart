@@ -8,6 +8,8 @@ import '../../core/utils/date_time_utils.dart';
 import '../../domain/models/ndef_record_info.dart';
 import '../../domain/models/nfc_scan.dart';
 import '../../domain/models/tag_fact_catalog.dart';
+import '../../domain/models/tag_identity_stability.dart';
+import '../../domain/services/tag_classifier.dart';
 import '../../domain/services/tag_assessor.dart';
 import '../widgets/key_value_row.dart';
 import '../widgets/section_card.dart';
@@ -25,6 +27,7 @@ class ScanDetailPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final classification = TagClassifier.classify(scan);
     final List<MapEntry<String, String>> details = scan.details.entries
         .where(
           (MapEntry<String, String> entry) =>
@@ -67,6 +70,10 @@ class ScanDetailPage extends StatelessWidget {
                 ),
                 KeyValueRow(label: 'Platform', value: scan.platform),
                 KeyValueRow(
+                  label: 'Identity stability',
+                  value: scan.identityStability.label,
+                ),
+                KeyValueRow(
                   label: 'UID',
                   value: scan.uidHex ?? 'Not exposed by this platform',
                   copyable: scan.uidHex != null,
@@ -80,6 +87,18 @@ class ScanDetailPage extends StatelessWidget {
                   label: 'Short fingerprint',
                   value: ByteUtils.shortFingerprint(scan.uidFingerprint),
                 ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          SectionCard(
+            title: 'Classification',
+            child: Column(
+              crossAxignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                KeyValueRow(label: 'Likely type', value: classification.label),
+                const SizedBox(height: 8),
+                Text(classification.detail),
               ],
             ),
           ),
