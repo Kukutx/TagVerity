@@ -111,6 +111,53 @@ abstract final class NdefDecoder {
     return '$prefix$body';
   }
 
+  static String _decodeAsciiStrict(Iterable<int> bytes) {
+    if (bytes.isEmpty) {
+      return '';
+    }
+    try {
+      return ascii.decode(bytes.toList(growable: false));
+    } on FormatException {
+      return '';
+    }
+  }
+
+  static String _decodeUtf16(Uint8List bytes) {
+    if (bytes.isEmpty) {
+      return '';
+    }
+
+    int offset = 0;
+    bool littleEndian = false;
+    if (bytes.length >= 2) {
+      if (bytes[0] == 0xFF && bytes[1] == 0xFE) {
+        littleEndian = true;
+        offset = 2;
+      } else if (bytes[0] == 0xFE && bytes[1] == 0xFF) {
+        offset = 2;
+      }
+    }
+
+    if ((bytes.length - offset).isOdd) {
+      return '';
+    }
+
+    final List<int> codeUnits = <int>[];
+    for (int index = offset; index < bytes.length; index += 2) {
+      final int unit = littleEndian
+          ? bytes[index] | (bytes[index + 1] << 8)
+          : (bytes[index] << 8) | bytes[index + 1];
+      codeUnits.add(unit);
+    }
+
+    try {
+      final String value = String.fromCharCodes(codeUnits).trim();
+      return _isMostlyPrintable(value) ? value : '';
+    } on ArgumentError {
+      return '';
+    }
+  }
+
   static String _decodeAscii(Iterable<int> bytes) {
     if (bytes.isEmpty) {
       return '';
