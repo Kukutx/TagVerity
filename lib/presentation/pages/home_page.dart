@@ -6,6 +6,8 @@ import '../../core/utils/byte_utils.dart';
 import '../../core/utils/date_time_utils.dart';
 import '../../domain/models/nfc_scan.dart';
 import '../../domain/models/nfc_support_status.dart';
+import '../../domain/models/tag_identity_stability.dart';
+import '../../domain/services/tag_classifier.dart';
 import '../controllers/nfc_scan_controller.dart';
 import '../widgets/key_value_row.dart';
 import '../widgets/section_card.dart';
@@ -129,6 +131,7 @@ class _CurrentScanCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final classification = TagClassifier.classify(scan);
     return SectionCard(
       title: 'Latest scan',
       trailing: Row(
@@ -158,6 +161,11 @@ class _CurrentScanCard extends StatelessWidget {
           KeyValueRow(
             label: 'Time',
             value: DateTimeUtils.formatLocal(scan.scannedAt),
+          ),
+          KeyValueRow(label: 'Type', value: classification.label),
+          KeyValueRow(
+            label: 'Identity',
+            value: scan.identityStability.label,
           ),
           KeyValueRow(
             label: 'UID',
