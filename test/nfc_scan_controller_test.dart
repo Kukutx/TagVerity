@@ -65,6 +65,38 @@ void main() {
     expect(controller.batchSessionActive, isFalse);
     controller.dispose();
   });
+
+  test('session-only identities are excluded from duplicate checks', () async {
+    final _MemoryRepository repository = _MemoryRepository();
+    final NfcScanController controller = NfcScanController(
+      readerService: _FakeReaderService(<NfcScan>[
+        _scan(
+          'scan-1',
+          'same-session-fingerprint',
+          identityStability: TagIdentityStability.sessionOnly,
+        ),
+        _scan(
+          'scan-2',
+          'same-session-fingerprint',
+          identityStability: TagIdentityStability.sessionOnly,
+        ),
+      ]),
+      repository: repository,
+      exportService: _FakeExportService(),
+    );
+    await controller.initialize();
+
+    controller.startBatchSession();
+    await controller.startBatchScan();
+    await controller.startBatchScan();
+
+    expect(controller.batchScans, hasLength(2));
+    expect(controller.batchComparableCount, 0);
+    expect(controller.batchSessionOnlyCount, 2);
+    expect(controller.batchUniqueCount, 0);
+    expect(controller.batchDuplicateFingerprints, isEmpty);
+    controller.dispose();
+  });
 }
 
 NfcScan _scan(
