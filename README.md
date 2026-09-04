@@ -7,9 +7,9 @@ TagVerity is a privacy-first, read-only NFC inspection app for Android and iOS. 
 - Inspect ISO 14443 NFC tags and cards.
 - Show public tag technology, UID when exposed by the OS, standard NDEF, and public protocol metadata.
 - Automatically summarize each scan as **PASS**, **LIMITED**, or **REVIEW**.
-- Run batch checks and detect duplicate tag fingerprints within the batch.
+- Run manual or continuous batch checks and detect duplicates only when the platform exposes a stable tag identity.
 - Search local scan history.
-- Copy or share scan/history JSON and batch CSV reports.
+- Copy or share scan/history JSON (schema v3) and identity-aware batch CSV reports.
 - Minimize stored identifiers by default.
 - Work offline with no account, ads, analytics, telemetry, or background upload.
 
@@ -99,6 +99,15 @@ TagVerity 1.0 focuses on three jobs:
 3. **Batch Scan** — inspect a set of tags and spot duplicates or warnings.
 
 The app remains intentionally offline-first and read-only.
+
+## Open source
+
+TagVerity is developed in the open under the MIT license. Core reliability comes before feature count.
+
+- See `docs/ROADMAP.md` for the core-first release plan.
+- See `CONTRIBUTING.md` before proposing or implementing changes.
+- Use GitHub Issues for reproducible bugs and user-facing feature requests.
+- Report security-sensitive issues through `SECURITY.md`, not a public issue.
 
 ## Validation
 
