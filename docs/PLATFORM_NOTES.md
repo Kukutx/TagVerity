@@ -12,6 +12,7 @@ With Flutter 3.47.1, the current `nfc_manager` release emits a warning that the 
 ## iOS
 - Core NFC presents the system scan sheet; TagVerity cannot provide Android-style silent continuous polling.
 - Polling covers ISO 14443 and ISO 15693.
+- Standard NFC Forum Type 4 / NDEF ISO 7816 selection is enabled with AID `D2760000850101`. TagVerity does not claim arbitrary ISO 7816 application discovery on iOS because Core NFC requires declared AIDs.
 - NFC-F polling is intentionally scoped to the NFC Forum Type 3 / NDEF system code `12FC`, which is declared in `Info.plist`. TagVerity does not enumerate proprietary FeliCa system codes.
 - Continuous Batch rearms by opening a new Core NFC session, so the system sheet may reopen between tags.
 - iOS may expose fewer identifiers and protocol fields than Android. When no comparable identifier is exposed, TagVerity marks identity as session-only and skips repeated-ID comparison.
@@ -19,8 +20,8 @@ With Flutter 3.47.1, the current `nfc_manager` release emits a warning that the 
 - A real iPhone, valid signing Team, NFC Tag Reading entitlement, and usage description are required for hardware validation.
 ## Assessment meaning
 - **PASS**: the core read completed with no inspection warnings. NDEF is not required.
-- **LIMITED**: the tag was read, but a user-disabled read option prevents a complete optional inspection (currently NDEF content reading).
-- **REVIEW**: one or more core reads failed or the OS exposed no usable technology stack.
+- **LIMITED**: the tag was read, but optional inspection data is incomplete because a read option is disabled or the OS did not expose/record optional metadata such as the technology stack or NDEF status.
+- **REVIEW**: one or more actual inspection reads failed or explicit scan warnings were produced.
 These labels are inspection summaries, not authenticity or security guarantees.
 ## Troubleshooting order
 1. Confirm NFC works with a known standard NDEF test tag.

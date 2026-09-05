@@ -16,7 +16,7 @@ A tag fingerprint may be retained locally. When the operating system exposes a c
 
 ## Sharing and exports
 
-TagVerity does not automatically upload scan data. When you choose Copy, Share, or Export, the requested data is handed to the operating system clipboard or share sheet. Native share exports use a temporary local file; TagVerity removes older TagVerity temporary export files before creating a new one so reports do not accumulate indefinitely. What happens after you choose a destination is controlled by the operating system and destination app or service.
+TagVerity does not automatically upload scan data. When you choose Copy, Share, or Export, the requested data is handed to the operating system clipboard or share sheet. Native share exports use a temporary local file; TagVerity removes TagVerity temporary export files older than 24 hours so reports do not accumulate indefinitely while recent files remain available long enough for the receiving app to read them. What happens after you choose a destination is controlled by the operating system and destination app or service.
 
 ## Network access, analytics, and advertising
 

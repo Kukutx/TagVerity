@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../core/utils/byte_utils.dart';
 import '../../core/utils/date_time_utils.dart';
@@ -11,6 +10,7 @@ import '../../domain/models/tag_fact_catalog.dart';
 import '../../domain/models/tag_identity_stability.dart';
 import '../../domain/services/tag_assessor.dart';
 import '../../domain/services/tag_classifier.dart';
+import '../utils/clipboard_feedback.dart';
 import '../widgets/key_value_row.dart';
 import '../widgets/section_card.dart';
 import '../widgets/tag_assessment_card.dart';
@@ -46,12 +46,11 @@ class _ScanDetailPageState extends State<ScanDetailPage> {
             onPressed: () async {
               final String text = const JsonEncoder.withIndent('  ')
                   .convert(scan.toJson());
-              await Clipboard.setData(ClipboardData(text: text));
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Scan JSON copied')),
-                );
-              }
+              await ClipboardFeedback.copy(
+                context,
+                text,
+                successMessage: 'Scan JSON copied',
+              );
             },
             icon: const Icon(Icons.data_object_rounded),
           ),

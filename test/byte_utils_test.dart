@@ -7,6 +7,11 @@ void main() {
       expect(ByteUtils.hex(<int>[0, 10, 255]), '00:0A:FF');
     });
 
+    test('reports a missing UID in English', () {
+      expect(ByteUtils.maskUid(null), 'Not saved');
+      expect(ByteUtils.maskUid(''), 'Not saved');
+    });
+
     test('masks all middle UID bytes', () {
       expect(ByteUtils.maskUid('04:A1:B2:C3:D4:E5:F6'), '04:••:••:••:••:••:F6');
     });

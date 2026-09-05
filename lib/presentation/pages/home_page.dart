@@ -65,7 +65,9 @@ class HomePage extends StatelessWidget {
                   const SizedBox(height: 18),
                   FilledButton.icon(
                     onPressed:
-                        controller.supportStatus == NfcSupportStatus.unsupported
+                        controller.supportStatus ==
+                                NfcSupportStatus.unsupported ||
+                            controller.settingsBusy
                         ? null
                         : () {
                             if (controller.isScanning) {
@@ -128,8 +130,8 @@ class _CurrentScanCard extends StatelessWidget {
           IconButton(
             tooltip: 'Copy scan JSON',
             onPressed: () async {
-              await controller.copyCurrentScanJson();
-              if (context.mounted) {
+              final bool copied = await controller.copyCurrentScanJson();
+              if (copied && context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Scan JSON copied')),
                 );

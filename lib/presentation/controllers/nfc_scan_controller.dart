@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
@@ -14,6 +16,7 @@ import '../../domain/models/nfc_support_status.dart';
 import '../../domain/models/scan_settings.dart';
 import '../../domain/models/tag_assessment.dart';
 import '../../domain/models/tag_fact_catalog.dart';
+import '../../domain/models/tag_identity_stability.dart';
 import '../../domain/repositories/scan_history_repository.dart';
 import '../../domain/services/diagnostics_buffer.dart';
 import '../../domain/services/export_service.dart';
@@ -49,13 +52,17 @@ final class NfcScanController extends ChangeNotifier
   String? _errorMessage;
   bool _initialized = false;
   bool _isScanning = false;
+  bool _scanStopInProgress = false;
   bool _disposed = false;
+  int _scanRequestSeed = 0;
+  int? _activeScanRequestId;
+  bool _activeScanAddsToBatch = false;
   Future<void> _settingsMutationTail = Future<void>.value();
   int _pendingSettingsMutations = 0;
+  Future<void> _historyMutationTail = Future<void>.value();
+  int _pendingHistoryMutations = 0;
   bool _batchSessionActive = false;
   bool _batchAutoContinue = false;
-  bool _captureNextScanInBatch = false;
-  DateTime? _batchStartedAt;
   NfcSupportStatus get supportStatus => _supportStatus;
   ScanSettings get settings => _settings;
   List<NfcScan> get history => List<NfcScan>.unmodifiable(_history);
@@ -67,9 +74,9 @@ final class NfcScanController extends ChangeNotifier
   bool get initialized => _initialized;
   bool get isScanning => _isScanning;
   bool get settingsBusy => _pendingSettingsMutations > 0;
+  bool get historyBusy => _pendingHistoryMutations > 0;
   bool get batchSessionActive => _batchSessionActive;
   bool get batchAutoContinue => _batchAutoContinue;
-  DateTime? get batchStartedAt => _batchStartedAt;
   TagAssessment? get currentAssessment =>
       _currentScan == null ? null : TagAssessor.assess(_currentScan!);
   bool get batchAtCapacity =>
@@ -90,9 +97,33 @@ final class NfcScanController extends ChangeNotifier
     }
     try {
       final List<NfcScan> history = await _repository.loadHistory();
-      _history = history
+      final List<NfcScan> limitedHistory = history
           .take(AppConstants.defaultHistoryLimit)
           .toList(growable: false);
+      final bool requiresPrivacyRewrite =
+          history.length != limitedHistory.length ||
+          limitedHistory.any(_historyNeedsPrivacyScrub);
+      final List<NfcScan> privacySafeHistory = limitedHistory
+          .map(_historySafeScan)
+          .toList(growable: false);
+      _history = privacySafeHistory;
+      if (requiresPrivacyRewrite) {
+        try {
+          await _repository.saveHistory(privacySafeHistory);
+          _addDiagnostic(
+            AppDiagnosticLevel.info,
+            'storage.history.privacy_rewrite',
+            'Saved history was rewritten to match current privacy settings.',
+            data: <String, Object?>{'historyCount': privacySafeHistory.length},
+          );
+        } on Object catch (error) {
+          _setError(
+            'History is hidden safely in this session, but stored sensitive data '
+            'could not be rewritten: ${ErrorText.clean(error)}',
+            code: 'storage.history.privacy_rewrite.failed',
+          );
+        }
+      }
     } on Object catch (error) {
       _setError(
         'Could not load saved history: ${ErrorText.clean(error)}',
@@ -112,7 +143,17 @@ final class NfcScanController extends ChangeNotifier
 
   Future<void> refreshAvailability() async {
     final NfcSupportStatus previous = _supportStatus;
-    _supportStatus = await _readerService.checkAvailability();
+    try {
+      _supportStatus = await _readerService.checkAvailability();
+    } on Object catch (error) {
+      _supportStatus = NfcSupportStatus.unknown;
+      _addDiagnostic(
+        AppDiagnosticLevel.warning,
+        'nfc.availability.check.failed',
+        'Could not refresh NFC availability',
+        data: <String, Object?>{'error': ErrorText.clean(error)},
+      );
+    }
     if (_supportStatus != previous) {
       _addDiagnostic(
         AppDiagnosticLevel.info,
@@ -125,17 +166,50 @@ final class NfcScanController extends ChangeNotifier
   }
 
   Future<void> startScan({bool addToBatch = false}) async {
-    if (_isScanning) {
+    if (_disposed || _isScanning || _scanStopInProgress) {
       return;
     }
-    _captureNextScanInBatch = addToBatch;
-    _errorMessage = null;
-    await refreshAvailability();
-    if (_supportStatus != NfcSupportStatus.enabled) {
-      _captureNextScanInBatch = false;
+    if (settingsBusy) {
       if (addToBatch) {
         _batchAutoContinue = false;
       }
+      _setError(
+        'Wait for the pending settings update before scanning.',
+        code: 'nfc.scan.settings_busy',
+        level: AppDiagnosticLevel.warning,
+      );
+      return;
+    }
+    if (!addToBatch && _batchAutoContinue) {
+      _setError(
+        'Stop continuous batch scanning before starting a single scan.',
+        code: 'nfc.scan.batch_active',
+        level: AppDiagnosticLevel.warning,
+      );
+      return;
+    }
+    final int requestId = ++_scanRequestSeed;
+    _activeScanRequestId = requestId;
+    _activeScanAddsToBatch = addToBatch;
+    _isScanning = true;
+    _errorMessage = null;
+    _notify();
+    try {
+      await refreshAvailability();
+    } on Object catch (error) {
+      if (!_isActiveScan(requestId)) return;
+      _finishScanRequest(requestId);
+      if (addToBatch) _batchAutoContinue = false;
+      _setError(
+        'Could not check NFC availability: ${ErrorText.clean(error)}',
+        code: 'nfc.availability.check.failed',
+      );
+      return;
+    }
+    if (!_isActiveScan(requestId)) return;
+    if (_supportStatus != NfcSupportStatus.enabled) {
+      _finishScanRequest(requestId);
+      if (addToBatch) _batchAutoContinue = false;
       _errorMessage = switch (_supportStatus) {
         NfcSupportStatus.disabled =>
           'Turn on NFC in system settings and try again.',
@@ -146,7 +220,6 @@ final class NfcScanController extends ChangeNotifier
       _notify();
       return;
     }
-    _isScanning = true;
     _addDiagnostic(
       AppDiagnosticLevel.info,
       'nfc.scan.start',
@@ -161,25 +234,54 @@ final class NfcScanController extends ChangeNotifier
     try {
       await _readerService.startScan(
         settings: _settings,
-        onScan: _handleScan,
-        onError: (String message) {
-          _batchAutoContinue = false;
-          _captureNextScanInBatch = false;
-          _isScanning = false;
-          _errorMessage = message;
-          _addDiagnostic(AppDiagnosticLevel.error, 'nfc.scan.failed', message);
-          _notify();
-        },
+        onScan: (NfcScan scan) => _handleScan(requestId, scan, addToBatch),
+        onError: (String message) =>
+            _handleScanError(requestId, message, addToBatch),
       );
     } on Object catch (error) {
-      _batchAutoContinue = false;
-      _captureNextScanInBatch = false;
-      _isScanning = false;
+      if (!_isActiveScan(requestId)) return;
+      _finishScanRequest(requestId);
+      if (addToBatch) _batchAutoContinue = false;
       _setError(ErrorText.clean(error), code: 'nfc.scan.start.failed');
     }
   }
 
+  bool _isActiveScan(int requestId) =>
+      !_disposed && _activeScanRequestId == requestId;
+  void _finishScanRequest(int requestId) {
+    if (_activeScanRequestId != requestId) return;
+    _activeScanRequestId = null;
+    _activeScanAddsToBatch = false;
+    _isScanning = false;
+  }
+
+  void _handleScanError(int requestId, String message, bool addToBatch) {
+    if (!_isActiveScan(requestId)) return;
+    _finishScanRequest(requestId);
+    if (addToBatch) _batchAutoContinue = false;
+    _errorMessage = message;
+    _addDiagnostic(AppDiagnosticLevel.error, 'nfc.scan.failed', message);
+    _notify();
+  }
+
   Future<void> startContinuousBatchScan() async {
+    if (settingsBusy) {
+      _batchAutoContinue = false;
+      _setError(
+        'Wait for the pending settings update before starting a batch scan.',
+        code: 'batch.settings_busy',
+        level: AppDiagnosticLevel.warning,
+      );
+      return;
+    }
+    if (_isScanning || _scanStopInProgress) {
+      _setError(
+        'Stop the current scan before starting continuous batch mode.',
+        code: 'batch.scan.busy',
+        level: AppDiagnosticLevel.warning,
+      );
+      return;
+    }
     if (batchAtCapacity) {
       _reportBatchCapacity();
       return;
@@ -200,7 +302,7 @@ final class NfcScanController extends ChangeNotifier
   Future<void> stopContinuousBatchScan() async {
     final bool wasActive = _batchAutoContinue;
     _batchAutoContinue = false;
-    if (_isScanning && _captureNextScanInBatch) {
+    if (_isScanning && _activeScanAddsToBatch) {
       await stopScan();
     } else {
       _notify();
@@ -216,6 +318,23 @@ final class NfcScanController extends ChangeNotifier
   }
 
   Future<void> startBatchScan() async {
+    if (settingsBusy) {
+      _batchAutoContinue = false;
+      _setError(
+        'Wait for the pending settings update before starting a batch scan.',
+        code: 'batch.settings_busy',
+        level: AppDiagnosticLevel.warning,
+      );
+      return;
+    }
+    if (_isScanning || _scanStopInProgress) {
+      _setError(
+        'Wait for the current scan to finish before scanning a batch tag.',
+        code: 'batch.scan.busy',
+        level: AppDiagnosticLevel.warning,
+      );
+      return;
+    }
     if (batchAtCapacity) {
       _reportBatchCapacity();
       return;
@@ -227,14 +346,30 @@ final class NfcScanController extends ChangeNotifier
   }
 
   void startBatchSession() {
+    if (settingsBusy) {
+      _batchAutoContinue = false;
+      _setError(
+        'Wait for the pending settings update before starting a batch scan.',
+        code: 'batch.settings_busy',
+        level: AppDiagnosticLevel.warning,
+      );
+      return;
+    }
     if (_batchSessionActive) {
+      return;
+    }
+    if (_isScanning || _scanStopInProgress) {
+      _setError(
+        'Stop the current scan before starting a batch.',
+        code: 'batch.scan.busy',
+        level: AppDiagnosticLevel.warning,
+      );
       return;
     }
     _batchSessionActive = true;
     _batchAutoContinue = false;
     _batchScans = const <NfcScan>[];
     _batchSummary = BatchSummary.empty;
-    _batchStartedAt = DateTime.now();
     _addDiagnostic(
       AppDiagnosticLevel.info,
       'batch.start',
@@ -244,10 +379,10 @@ final class NfcScanController extends ChangeNotifier
   }
 
   void finishBatchSession() {
+    final bool shouldStopBatchScan = _isScanning && _activeScanAddsToBatch;
     _batchSessionActive = false;
     _batchAutoContinue = false;
-    _captureNextScanInBatch = false;
-    if (_isScanning) {
+    if (shouldStopBatchScan) {
       unawaited(stopScan());
     }
     _addDiagnostic(
@@ -264,20 +399,25 @@ final class NfcScanController extends ChangeNotifier
   }
 
   Future<void> clearBatchSession() async {
-    if (_isScanning && _captureNextScanInBatch) {
+    if (_isScanning && _activeScanAddsToBatch) {
       await stopScan();
     }
     _batchSessionActive = false;
     _batchAutoContinue = false;
-    _captureNextScanInBatch = false;
     _batchScans = const <NfcScan>[];
     _batchSummary = BatchSummary.empty;
-    _batchStartedAt = null;
     _notify();
   }
 
   Future<void> stopScan() async {
+    if (_scanStopInProgress) {
+      return;
+    }
     final bool wasScanning = _isScanning;
+    _activeScanRequestId = null;
+    _activeScanAddsToBatch = false;
+    _batchAutoContinue = false;
+    _scanStopInProgress = true;
     try {
       await _readerService.stopScan();
       if (wasScanning) {
@@ -293,28 +433,23 @@ final class NfcScanController extends ChangeNotifier
         code: 'nfc.scan.stop.failed',
       );
     } finally {
-      _batchAutoContinue = false;
-      _captureNextScanInBatch = false;
       _isScanning = false;
+      _scanStopInProgress = false;
       _notify();
     }
   }
 
-  Future<void> _handleScan(NfcScan scan) async {
-    final bool addToBatch = _captureNextScanInBatch;
-    _captureNextScanInBatch = false;
+  Future<void> _handleScan(int requestId, NfcScan scan, bool addToBatch) async {
+    if (!_isActiveScan(requestId)) {
+      return;
+    }
+    _finishScanRequest(requestId);
     _currentScan = scan;
-    _isScanning = false;
     _errorMessage = null;
     if (addToBatch && !batchAtCapacity) {
       _batchScans = <NfcScan>[..._batchScans, scan].toList(growable: false);
       _batchSummary = BatchSummary.fromScans(_batchScans);
     }
-    final NfcScan persisted = _historySafeScan(scan);
-    final List<NfcScan> nextHistory = <NfcScan>[
-      persisted,
-      ..._history.where((NfcScan item) => item.id != persisted.id),
-    ].take(AppConstants.defaultHistoryLimit).toList(growable: false);
     _addDiagnostic(
       AppDiagnosticLevel.info,
       'nfc.scan.complete',
@@ -330,10 +465,22 @@ final class NfcScanController extends ChangeNotifier
     );
     _notify();
     try {
-      await _repository.saveHistory(nextHistory);
-      _history = nextHistory;
-      _notify();
+      await _enqueueHistoryMutation(() async {
+        final NfcScan persisted = _historySafeScan(scan);
+        final List<NfcScan> nextHistory = <NfcScan>[
+          persisted,
+          ..._history.where((NfcScan item) => item.id != persisted.id),
+        ].take(AppConstants.defaultHistoryLimit).toList(growable: false);
+        await _repository.saveHistory(nextHistory);
+        // Settings can change while the disk write is in flight. Re-apply the
+        // latest privacy policy before exposing the updated list in memory.
+        _history = nextHistory.map(_historySafeScan).toList(growable: false);
+        _notify();
+      });
     } on Object catch (error) {
+      if (addToBatch) {
+        _batchAutoContinue = false;
+      }
       _setError(
         'Could not save scan history: ${ErrorText.clean(error)}',
         code: 'storage.history.save.failed',
@@ -353,15 +500,58 @@ final class NfcScanController extends ChangeNotifier
   }
 
   NfcScan _historySafeScan(NfcScan scan) {
+    final bool retainComparableIdentity =
+        _settings.saveTechnicalIdentifiersInHistory;
     return scan.copyWith(
+      id: scan.id,
       uidHex: _settings.saveRawUidInHistory ? scan.uidHex : null,
-      details: _settings.saveTechnicalIdentifiersInHistory
+      uidFingerprint: retainComparableIdentity
+          ? scan.uidFingerprint
+          : _historySessionFingerprint(scan),
+      identityStability: retainComparableIdentity
+          ? scan.identityStability
+          : TagIdentityStability.sessionOnly,
+      details: retainComparableIdentity
           ? scan.details
           : TagFactCatalog.privacyScrubbedDetails(scan.details),
       ndefRecords: _settings.saveNdefInHistory
           ? scan.ndefRecords
           : const <NdefRecordInfo>[],
     );
+  }
+
+  NfcScan _fullyPrivacyScrubbedHistoryScan(NfcScan scan) {
+    return scan.copyWith(
+      id: scan.id,
+      uidHex: null,
+      uidFingerprint: _historySessionFingerprint(scan),
+      identityStability: TagIdentityStability.sessionOnly,
+      details: TagFactCatalog.privacyScrubbedDetails(scan.details),
+      ndefRecords: const <NdefRecordInfo>[],
+    );
+  }
+
+  String _historySessionFingerprint(NfcScan scan) {
+    return sha256
+        .convert(
+          utf8.encode(
+            'history|${scan.id}|${scan.scannedAt.toUtc().microsecondsSinceEpoch}|'
+            '${scan.platform}',
+          ),
+        )
+        .toString();
+  }
+
+  bool _historyNeedsPrivacyScrub(NfcScan scan) {
+    final bool identityNeedsScrub =
+        !_settings.saveTechnicalIdentifiersInHistory &&
+        (scan.identityStability != TagIdentityStability.sessionOnly ||
+            scan.uidFingerprint != _historySessionFingerprint(scan));
+    return (!_settings.saveRawUidInHistory && scan.uidHex != null) ||
+        (!_settings.saveNdefInHistory && scan.ndefRecords.isNotEmpty) ||
+        identityNeedsScrub ||
+        (!_settings.saveTechnicalIdentifiersInHistory &&
+            scan.details.keys.any(TagFactCatalog.isLinkable));
   }
 
   Future<bool> updateSettings(
@@ -399,25 +589,9 @@ final class NfcScanController extends ChangeNotifier
         (previous.saveNdefInHistory && !nextSettings.saveNdefInHistory) ||
         (previous.saveTechnicalIdentifiersInHistory &&
             !nextSettings.saveTechnicalIdentifiersInHistory);
-    List<NfcScan>? scrubbedHistory;
-    if (disablingSensitiveRetention) {
-      scrubbedHistory = _history
-          .map((NfcScan scan) {
-            return scan.copyWith(
-              uidHex: nextSettings.saveRawUidInHistory ? scan.uidHex : null,
-              ndefRecords: nextSettings.saveNdefInHistory
-                  ? scan.ndefRecords
-                  : const <NdefRecordInfo>[],
-              details: nextSettings.saveTechnicalIdentifiersInHistory
-                  ? scan.details
-                  : TagFactCatalog.privacyScrubbedDetails(scan.details),
-            );
-          })
-          .toList(growable: false);
-    }
     try {
-      // Commit the privacy setting first. If historical cleanup later fails,
-      // future scans still stop retaining the disabled sensitive field.
+      // Commit the privacy setting first. Future scans immediately follow the
+      // new retention policy even if rewriting older history later fails.
       await _repository.saveSettings(nextSettings);
       _settings = nextSettings;
     } on Object catch (error) {
@@ -427,13 +601,24 @@ final class NfcScanController extends ChangeNotifier
       );
       return false;
     }
-    if (scrubbedHistory != null) {
+    if (disablingSensitiveRetention) {
+      // Never re-expose sensitive data in this running session. A queued disk
+      // rewrite will run after any scan/history write already in flight.
+      _history = _history.map(_historySafeScan).toList(growable: false);
+      _notify();
       try {
-        await _repository.saveHistory(scrubbedHistory);
-        _history = scrubbedHistory;
+        await _enqueueHistoryMutation(() async {
+          final List<NfcScan> scrubbedHistory = _history
+              .map(_historySafeScan)
+              .toList(growable: false);
+          _history = scrubbedHistory;
+          _notify();
+          await _repository.saveHistory(scrubbedHistory);
+        });
       } on Object catch (error) {
         _setError(
-          'Setting updated, but saved history could not be scrubbed: ${ErrorText.clean(error)}',
+          'Setting updated, but saved history could not be scrubbed on disk: '
+          '${ErrorText.clean(error)}',
           code: 'storage.history.scrub.after_setting.failed',
         );
         return false;
@@ -456,19 +641,23 @@ final class NfcScanController extends ChangeNotifier
     return true;
   }
 
-  Future<bool> deleteHistoryItem(String id) async {
-    final List<NfcScan> nextHistory = _history
-        .where((NfcScan scan) => scan.id != id)
-        .toList(growable: false);
-    return _replaceHistoryPersisted(nextHistory, 'Delete history item');
+  Future<bool> deleteHistoryItem(String id) {
+    return _mutateHistoryPersisted(
+      'Delete history item',
+      (List<NfcScan> current) => current
+          .where((NfcScan scan) => scan.id != id)
+          .toList(growable: false),
+    );
   }
 
   Future<bool> clearHistory() async {
     try {
-      await _repository.clearHistory();
-      _history = const <NfcScan>[];
-      _errorMessage = null;
-      _notify();
+      await _enqueueHistoryMutation(() async {
+        await _repository.clearHistory();
+        _history = const <NfcScan>[];
+        _errorMessage = null;
+        _notify();
+      });
       return true;
     } on Object catch (error) {
       _setError(
@@ -479,31 +668,26 @@ final class NfcScanController extends ChangeNotifier
     }
   }
 
-  Future<bool> scrubSensitiveHistory() async {
-    final List<NfcScan> nextHistory = _history
-        .map(
-          (NfcScan scan) => scan.copyWith(
-            uidHex: null,
-            ndefRecords: const <NdefRecordInfo>[],
-            details: TagFactCatalog.privacyScrubbedDetails(scan.details),
-          ),
-        )
-        .toList(growable: false);
-    return _replaceHistoryPersisted(
-      nextHistory,
+  Future<bool> scrubSensitiveHistory() {
+    return _mutateHistoryPersisted(
       'Remove sensitive data from history',
+      (List<NfcScan> current) =>
+          current.map(_fullyPrivacyScrubbedHistoryScan).toList(growable: false),
     );
   }
 
-  Future<bool> _replaceHistoryPersisted(
-    List<NfcScan> nextHistory,
+  Future<bool> _mutateHistoryPersisted(
     String action,
+    List<NfcScan> Function(List<NfcScan> current) transform,
   ) async {
     try {
-      await _repository.saveHistory(nextHistory);
-      _history = nextHistory;
-      _errorMessage = null;
-      _notify();
+      await _enqueueHistoryMutation(() async {
+        final List<NfcScan> nextHistory = transform(_history);
+        await _repository.saveHistory(nextHistory);
+        _history = nextHistory;
+        _errorMessage = null;
+        _notify();
+      });
       return true;
     } on Object catch (error) {
       _setError(
@@ -515,15 +699,30 @@ final class NfcScanController extends ChangeNotifier
     }
   }
 
-  Future<void> copyCurrentScanJson() async {
+  Future<void> _enqueueHistoryMutation(Future<void> Function() action) {
+    final Completer<void> completer = Completer<void>();
+    _pendingHistoryMutations++;
+    _notify();
+    _historyMutationTail = _historyMutationTail.then((_) async {
+      try {
+        await action();
+        completer.complete();
+      } on Object catch (error, stackTrace) {
+        completer.completeError(error, stackTrace);
+      } finally {
+        _pendingHistoryMutations--;
+        _notify();
+      }
+    });
+    return completer.future;
+  }
+
+  Future<bool> copyCurrentScanJson() async {
     final NfcScan? scan = _currentScan;
-    if (scan == null) return;
-    await Clipboard.setData(
-      ClipboardData(
-        text: ReportEncoder.prettyJson(
-          ReportEncoder.exportEnvelope(<NfcScan>[scan]),
-        ),
-      ),
+    if (scan == null) return false;
+    return _copyText(
+      ReportEncoder.prettyJson(ReportEncoder.exportEnvelope(<NfcScan>[scan])),
+      label: 'scan JSON',
     );
   }
 
@@ -540,11 +739,10 @@ final class NfcScanController extends ChangeNotifier
     );
   }
 
-  Future<void> copyHistoryJson() async {
-    await Clipboard.setData(
-      ClipboardData(
-        text: ReportEncoder.prettyJson(ReportEncoder.exportEnvelope(_history)),
-      ),
+  Future<bool> copyHistoryJson() {
+    return _copyText(
+      ReportEncoder.prettyJson(ReportEncoder.exportEnvelope(_history)),
+      label: 'history JSON',
     );
   }
 
@@ -558,11 +756,10 @@ final class NfcScanController extends ChangeNotifier
     );
   }
 
-  Future<void> copyBatchCsv() async {
-    await Clipboard.setData(
-      ClipboardData(
-        text: ReportEncoder.batchCsv(_batchScans, summary: _batchSummary),
-      ),
+  Future<bool> copyBatchCsv() {
+    return _copyText(
+      ReportEncoder.batchCsv(_batchScans, summary: _batchSummary),
+      label: 'batch CSV',
     );
   }
 
@@ -597,7 +794,7 @@ final class NfcScanController extends ChangeNotifier
     }
   }
 
-  Future<void> copyDiagnosticsJson() async {
+  Future<bool> copyDiagnosticsJson() async {
     final Map<String, Object?> payload = <String, Object?>{
       'schemaVersion': AppConstants.diagnosticsSchemaVersion,
       'app': AppConstants.appName,
@@ -612,9 +809,24 @@ final class NfcScanController extends ChangeNotifier
           .map((DiagnosticEvent event) => event.toJson())
           .toList(growable: false),
     };
-    await Clipboard.setData(
-      ClipboardData(text: ReportEncoder.prettyJson(payload)),
+    return _copyText(
+      ReportEncoder.prettyJson(payload),
+      label: 'diagnostics JSON',
     );
+  }
+
+  Future<bool> _copyText(String text, {required String label}) async {
+    try {
+      await Clipboard.setData(ClipboardData(text: text));
+      return true;
+    } on Object catch (error) {
+      _setError(
+        'Could not copy $label: ${ErrorText.clean(error)}',
+        code: 'export.copy.failed',
+        data: <String, Object?>{'label': label},
+      );
+      return false;
+    }
   }
 
   void clearDiagnostics() {
@@ -683,9 +895,11 @@ final class NfcScanController extends ChangeNotifier
   @override
   void dispose() {
     _batchAutoContinue = false;
+    _activeScanRequestId = null;
+    _activeScanAddsToBatch = false;
     _disposed = true;
     WidgetsBinding.instance.removeObserver(this);
-    unawaited(_readerService.stopScan());
+    unawaited(_readerService.stopScan().catchError((Object _) {}));
     super.dispose();
   }
 }

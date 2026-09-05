@@ -7,6 +7,7 @@ TagVerity is developed **core-first**. Reliability, clear NFC semantics, privacy
 - [x] NFC-V / ISO 15693 polling and public metadata on Android and iOS.
 - [x] NFC-F / ISO 18092 polling and public metadata on Android.
 - [x] NFC Forum Type 3 / NDEF (`12FC`) NFC-F polling on iOS.
+- [x] Standard NFC Forum Type 4 / NDEF ISO 7816 AID (`D2760000850101`) on iOS, without claiming arbitrary ISO 7816 application enumeration.
 - [x] Conservative classification without pretending to identify proprietary applications.
 - [x] Comparable vs session-only identity semantics.
 - [x] PASS / LIMITED / REVIEW based on core read quality rather than NDEF presence.
@@ -33,10 +34,11 @@ TagVerity is developed **core-first**. Reliability, clear NFC semantics, privacy
 - [x] Raw UID, NDEF content, and linkable technical identifiers disabled in history by default.
 - [x] Transactional history mutations: UI only reports success after persistence succeeds.
 - [x] Settings mutations are serialized against the latest committed state so rapid toggles cannot re-enable stale values.
-- [x] Disabling sensitive retention is privacy-first: future retention stops before historical cleanup, and cleanup failure stays visible.
+- [x] Disabling sensitive retention is privacy-first: future retention stops first, in-memory history is hidden immediately, disk rewrites are serialized, and cleanup failure stays visible.
+- [x] History persistence is serialized across scan saves, delete, clear, scrub, and privacy rewrites, including recovery after a queued write failure.
 - [x] Corrupt local history/settings surface an error instead of silently pretending data is empty.
 - [x] JSON export for scans/history and CSV export for batches.
-- [x] Native Android/iOS sharing with failure reporting and old temporary-export cleanup.
+- [x] Native Android/iOS sharing with failure reporting and 24-hour stale temporary-export cleanup.
 - [x] Privacy-safe diagnostics.
 ### UX and quality
 - [x] Global error banner visible from Inspect, Batch, History, and Settings.

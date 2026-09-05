@@ -23,7 +23,7 @@ abstract final class ByteUtils {
 
   static String maskUid(String? value) {
     if (value == null || value.isEmpty) {
-      return '未保存';
+      return 'Not saved';
     }
     final List<String> parts = value.split(':');
     if (parts.length <= 2) {

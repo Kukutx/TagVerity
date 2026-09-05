@@ -111,6 +111,20 @@ void main() {
       );
     });
 
+    test('shows non-ASCII record types as hex instead of replacement text', () {
+      final NdefRecord record = NdefRecord(
+        typeNameFormat: TypeNameFormat.media,
+        type: Uint8List.fromList(<int>[0xFF, 0x00]),
+        identifier: Uint8List(0),
+        payload: Uint8List.fromList(<int>[1, 2]),
+      );
+
+      final result = NdefDecoder.decodeRecord(0, record);
+
+      expect(result.type, 'FF:00');
+      expect(result.type, isNot(contains('�')));
+    });
+
     test('caps long summaries', () {
       final NdefRecord record = NdefRecord(
         typeNameFormat: TypeNameFormat.media,

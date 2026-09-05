@@ -105,7 +105,10 @@ class SettingsPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   OutlinedButton.icon(
-                    onPressed: settingsBusy || controller.history.isEmpty
+                    onPressed:
+                        settingsBusy ||
+                            controller.historyBusy ||
+                            controller.history.isEmpty
                         ? null
                         : () async {
                             final bool removed = await controller
