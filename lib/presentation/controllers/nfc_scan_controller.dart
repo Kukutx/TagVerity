@@ -1,7 +1,5 @@
 import 'dart:async';
-import 'dart:convert';
 
-import 'package:crypto/crypto.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
@@ -20,6 +18,7 @@ import '../../domain/models/tag_identity_stability.dart';
 import '../../domain/repositories/scan_history_repository.dart';
 import '../../domain/services/diagnostics_buffer.dart';
 import '../../domain/services/export_service.dart';
+import '../../domain/services/history_privacy.dart';
 import '../../domain/services/report_encoder.dart';
 import '../../domain/services/tag_assessor.dart';
 
@@ -531,16 +530,8 @@ final class NfcScanController extends ChangeNotifier
     );
   }
 
-  String _historySessionFingerprint(NfcScan scan) {
-    return sha256
-        .convert(
-          utf8.encode(
-            'history|${scan.id}|${scan.scannedAt.toUtc().microsecondsSinceEpoch}|'
-            '${scan.platform}',
-          ),
-        )
-        .toString();
-  }
+  String _historySessionFingerprint(NfcScan scan) =>
+      HistoryPrivacy.sessionFingerprint(scan);
 
   bool _historyNeedsPrivacyScrub(NfcScan scan) {
     final bool identityNeedsScrub =

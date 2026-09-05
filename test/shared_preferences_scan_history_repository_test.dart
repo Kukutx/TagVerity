@@ -53,11 +53,27 @@ void main() {
 
       expect(history, hasLength(1));
       expect(history.single.uidHex, isNull);
+      expect(history.single.uidFingerprint, isNot(scan.uidFingerprint));
+      expect(history.single.uidFingerprint, matches(RegExp(r'^[0-9a-f]{64}$')));
+      expect(
+        history.single.identityStability,
+        TagIdentityStability.sessionOnly,
+      );
       expect(history.single.ndefRecords, isEmpty);
       expect(history.single.details['barcode.value'], isNull);
       expect(history.single.details['nfca.sak'], '0x08');
       expect(await prefs.getString('nfc_inspector.history.v1'), isNull);
-      expect(await prefs.getString('tagverity.history.v2'), isNotNull);
+      final String? migratedJson = await prefs.getString(
+        'tagverity.history.v2',
+      );
+      expect(migratedJson, isNotNull);
+      final List<dynamic> persisted =
+          jsonDecode(migratedJson!) as List<dynamic>;
+      final Map<String, dynamic> persistedScan =
+          persisted.single as Map<String, dynamic>;
+      expect(persistedScan['uidHex'], isNull);
+      expect(persistedScan['uidFingerprint'], history.single.uidFingerprint);
+      expect(persistedScan['identityStability'], 'sessionOnly');
     });
 
     test('corrupt current history is reported instead of hidden', () async {
@@ -111,6 +127,34 @@ void main() {
     test('nested corrupt history fields are rejected', () async {
       final Map<String, Object?> json = _scan().toJson();
       json['technologies'] = <Object?>['NfcA', 42];
+      final store = InMemorySharedPreferencesAsync.withData(<String, Object>{
+        'tagverity.history.v2': jsonEncode(<Object?>[json]),
+      });
+      SharedPreferencesAsyncPlatform.instance = store;
+      final repository = SharedPreferencesScanHistoryRepository(
+        preferences: SharedPreferencesAsync(),
+      );
+
+      await expectLater(repository.loadHistory(), throwsFormatException);
+    });
+
+    test('schema-incompatible fingerprints are rejected', () async {
+      final Map<String, Object?> json = _scan().toJson();
+      json['uidFingerprint'] = 'not-a-sha256-fingerprint';
+      final store = InMemorySharedPreferencesAsync.withData(<String, Object>{
+        'tagverity.history.v2': jsonEncode(<Object?>[json]),
+      });
+      SharedPreferencesAsyncPlatform.instance = store;
+      final repository = SharedPreferencesScanHistoryRepository(
+        preferences: SharedPreferencesAsync(),
+      );
+
+      await expectLater(repository.loadHistory(), throwsFormatException);
+    });
+
+    test('duplicate persisted technologies are rejected', () async {
+      final Map<String, Object?> json = _scan().toJson();
+      json['technologies'] = <Object?>['NfcA', 'NfcA'];
       final store = InMemorySharedPreferencesAsync.withData(<String, Object>{
         'tagverity.history.v2': jsonEncode(<Object?>[json]),
       });
@@ -200,7 +244,8 @@ NfcScan _scan({String id = 'scan-1'}) {
     scannedAt: DateTime.utc(2026, 9, 5),
     platform: 'android',
     uidHex: '04:AA:BB:CC',
-    uidFingerprint: '0123456789abcdef0123456789abcdef',
+    uidFingerprint:
+        '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
     identityStability: TagIdentityStability.stable,
     technologies: const <String>['NfcA'],
     details: const <String, String>{
