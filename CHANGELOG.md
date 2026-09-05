@@ -7,16 +7,25 @@
 - Changed PASS / LIMITED / REVIEW semantics so a valid non-NDEF smart card can PASS; NDEF absence is informational, while NDEF read failures remain REVIEW.
 - Optional low-level controller metadata failures are now best-effort and no longer incorrectly force REVIEW.
 - Continuous Batch now rearms only after the native NFC session has actually closed, removing the previous hard-coded rearm delay.
+### Deep-audit hardening
+- Added scan request/session generation guards so rapid taps, stop-during-start, stale native callbacks, and old NFC sessions cannot corrupt a newer scan.
+- Serialized all history persistence so scan saves, delete, clear, scrub, and privacy rewrites cannot overwrite each other from stale snapshots; one failed queued write no longer poisons later operations.
+- Default saved history no longer retains a comparable tag fingerprint when technical identifiers are disabled; it keeps the scan event ID but replaces tag identity with a session-only per-scan fingerprint.
+- Added startup privacy enforcement so previously retained sensitive history is hidden immediately and rewritten to match current settings.
+- Added standard NFC Forum Type 4 / NDEF AID `D2760000850101` for iOS without claiming arbitrary ISO 7816 application discovery.
+- Added recursive diagnostics sanitization, clean platform-error text, NFC availability timeout/failure handling, and false-success protection for clipboard copies.
+- Fixed a narrow-screen / large-text `SectionCard` overflow found by a 320px + 200% text-scale stress test.
+- Added per-process scan sequencing to event IDs to avoid timestamp-collision keys.
 ### Reliability, privacy, and performance
 - Added a cached one-pass `BatchSummary` for quality and comparable-identity metrics.
 - Switched Batch and History results to lazy list rendering and stopped building/listening to all four bottom-navigation pages at once.
 - Added a global error banner so scan, storage, settings, and export failures are visible from every main tab.
 - Made scan-history persistence transactional: failed saves no longer create history that appears saved until app restart.
 - Made Settings and history mutations return success/failure explicitly; success UI is only shown after persistence succeeds.
-- Turning sensitive retention off now transactionally scrubs matching already-saved data.
+- Turning sensitive retention off is now privacy-first: the stricter setting is committed first, in-memory history is scrubbed immediately, and the on-disk rewrite is serialized behind any in-flight history write.
 - Malformed persisted history/settings now surfaces a storage error rather than silently appearing empty.
 - Consolidated sensitive-history cleanup into one action.
-- Native Android/iOS sharing now removes stale `tagverity-*` temporary export files before writing a new report.
+- Native Android/iOS sharing now removes only `tagverity-*` temporary export files older than 24 hours, avoiding premature deletion while a receiving app may still be reading a report.
 - Hardened NDEF media summaries so binary MIME payloads are not displayed as decoded text.
 ### UX and maintainability
 - Simplified Settings to NDEF reading plus privacy controls; moved runtime diagnostics to a dedicated page.
@@ -27,7 +36,7 @@
 - Open-source bootstrap now accepts compatible SDKs by default while retaining maintainer-only `--strict-sdk --single-sdk` enforcement.
 - Google Play store script now targets ARM32 + ARM64; the development APK remains ARM64-focused.
 - Added Widget Tests for core navigation, global errors, and a 320px-wide phone surface.
-- Expanded automated coverage to 52 tests in the local pre-PR validation run, including navigation, scan-state, error-banner, sensitive-setting, narrow-screen, 200% text-scale, and dark-mode Widget Tests.
+- Expanded automated coverage with scan-lifecycle races, serialized history mutations, SharedPreferences migration/corruption tests, recursive diagnostics redaction, report encoding, clipboard failures, availability/settings guards, and a 320px + 200% text-scale Tag Details stress test.
 ### Previously completed core work
 - Added comparable-ID vs session-only NFC identity semantics so repeated-ID checks never claim physical-tag uniqueness when the platform lacks a comparable identifier.
 - Added conservative NFC tag classification without guessing proprietary applications.

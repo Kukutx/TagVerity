@@ -26,8 +26,13 @@ class MainActivity : FlutterActivity() {
             }
             try {
                 val exportDirectory = File(cacheDir, "exports").apply { mkdirs() }
+                val staleBefore = System.currentTimeMillis() - 24L * 60L * 60L * 1000L
                 exportDirectory.listFiles()
-                    ?.filter { it.isFile && it.name.startsWith("tagverity-") }
+                    ?.filter {
+                        it.isFile &&
+                            it.name.startsWith("tagverity-") &&
+                            it.lastModified() < staleBefore
+                    }
                     ?.forEach { it.delete() }
                 val safeFilename = filename.replace(Regex("[^A-Za-z0-9._-]"), "_")
                 val file = File(exportDirectory, safeFilename)

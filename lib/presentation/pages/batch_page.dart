@@ -97,7 +97,7 @@ class _BatchControls extends StatelessWidget {
             FilledButton.icon(
               onPressed: controller.batchAutoContinue
                   ? () => unawaited(controller.stopContinuousBatchScan())
-                  : controller.isScanning
+                  : controller.isScanning || controller.settingsBusy
                   ? null
                   : () => unawaited(controller.startContinuousBatchScan()),
               icon: Icon(
@@ -117,6 +117,8 @@ class _BatchControls extends StatelessWidget {
                   ? null
                   : controller.isScanning
                   ? () => unawaited(controller.stopScan())
+                  : controller.settingsBusy
+                  ? null
                   : () => unawaited(controller.startBatchScan()),
               icon: controller.isScanning
                   ? const SizedBox.square(
@@ -136,7 +138,9 @@ class _BatchControls extends StatelessWidget {
             ),
           ] else ...<Widget>[
             FilledButton.icon(
-              onPressed: () => unawaited(controller.startContinuousBatchScan()),
+              onPressed: controller.settingsBusy
+                  ? null
+                  : () => unawaited(controller.startContinuousBatchScan()),
               icon: const Icon(Icons.repeat_rounded),
               label: Text(
                 controller.batchScans.isEmpty
@@ -214,8 +218,8 @@ class _BatchResultsHeader extends StatelessWidget {
           IconButton(
             tooltip: 'Copy CSV',
             onPressed: () async {
-              await controller.copyBatchCsv();
-              if (context.mounted) {
+              final bool copied = await controller.copyBatchCsv();
+              if (copied && context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Batch CSV copied')),
                 );

@@ -33,7 +33,7 @@ A shell-level error banner exposes storage, export, and scan failures from which
 ## Assessment semantics
 - **PASS**: the core NFC read completed with no warnings. NDEF is not required.
 - **LIMITED**: a user-disabled optional read (currently NDEF content) prevents the full optional inspection.
-- **REVIEW**: a core read failed or no usable technology stack was exposed.
+- **REVIEW**: an actual inspection read failed or explicit scan warnings were produced.
 Optional max-transceive, timeout, or similar low-level metadata failures do not by themselves force REVIEW.
 ## Stable tag facts
 Platform metadata uses stable keys such as `nfca.sak`, `nfcv.dsfId`, `nfcf.systemCode`, `ndef.supported`, and `isodep.historicalBytes`. UI labels are resolved separately through `TagFactCatalog`.

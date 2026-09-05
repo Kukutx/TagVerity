@@ -16,7 +16,7 @@ abstract final class NdefDecoder {
   }
 
   static NdefRecordInfo decodeRecord(int index, NdefRecord record) {
-    final String type = _decodeAscii(record.type);
+    final String type = _decodeAsciiStrict(record.type);
     return NdefRecordInfo(
       index: index,
       typeNameFormat: record.typeNameFormat.name,
@@ -156,17 +156,6 @@ abstract final class NdefDecoder {
       final String value = String.fromCharCodes(codeUnits).trim();
       return _isMostlyPrintable(value) ? value : '';
     } on ArgumentError {
-      return '';
-    }
-  }
-
-  static String _decodeAscii(Iterable<int> bytes) {
-    if (bytes.isEmpty) {
-      return '';
-    }
-    try {
-      return ascii.decode(bytes.toList(growable: false), allowInvalid: true);
-    } on FormatException {
       return '';
     }
   }

@@ -12,6 +12,7 @@
 - [ ] Inspect flow reads known ISO 14443 / NFC-A or NFC-B tags.
 - [ ] NFC-V / ISO 15693 reads on representative hardware.
 - [ ] NFC-F reads on Android; NFC Forum Type 3 (`12FC`) reads on iPhone when hardware is available.
+- [ ] A standard NFC Forum Type 4 / NDEF tag reads on iPhone through declared AID `D2760000850101`; no arbitrary ISO 7816 application support is claimed.
 - [ ] PASS / LIMITED / REVIEW semantics are sensible on real tags; a valid non-NDEF smart card can PASS.
 - [ ] Manual and continuous Batch modes both record multiple tags.
 - [ ] Continuous Batch stops cleanly on user stop, scan error/timeout, batch finish, app backgrounding, and capacity limit.
@@ -21,7 +22,8 @@
 - [ ] Share failures produce the global error banner rather than crashing.
 - [ ] Raw UID, NDEF, and linkable technical history are off by default.
 - [ ] Disabling sensitive retention immediately stops future retention and removes matching already-saved data.
-- [ ] If historical cleanup fails after disabling retention, the setting stays off and the global error banner reports incomplete cleanup.
+- [ ] If historical cleanup fails after disabling retention, the setting stays off, sensitive data remains hidden in the running UI/export path, and the global error banner reports incomplete on-disk cleanup.
+- [ ] Scan-save, delete, clear, and privacy-history mutations remain serialized under rapid user actions.
 ## Android
 - [ ] NFC permission and NFC hardware feature are declared.
 - [ ] Application label is `TagVerity`.
@@ -33,6 +35,7 @@
 - [ ] `NFCReaderUsageDescription` is present.
 - [ ] NFC Tag Reading entitlement is enabled.
 - [ ] NFC Forum Type 3 FeliCa system code `12FC` is present in `Info.plist`.
+- [ ] NFC Forum Type 4 / NDEF ISO 7816 AID `D2760000850101` is present in `Info.plist`.
 - [ ] Bundle identifier is final.
 - [ ] Signing Team is configured in Xcode.
 - [ ] Archive succeeds on macOS.

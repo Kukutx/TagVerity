@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tagverity/data/nfc/nfc_reader_service.dart';
 import 'package:tagverity/domain/models/nfc_scan.dart';
@@ -57,6 +58,11 @@ void main() {
     final NfcScan original = _scan();
     final _MemoryRepository repository = _MemoryRepository(
       initialHistory: <NfcScan>[original],
+      initialSettings: const ScanSettings(
+        saveRawUidInHistory: true,
+        saveNdefInHistory: true,
+        saveTechnicalIdentifiersInHistory: true,
+      ),
       failSaveHistory: true,
     );
     final NfcScanController controller = NfcScanController(
@@ -88,7 +94,12 @@ void main() {
       expect(removed, isTrue);
       expect(controller.history.single.uidHex, isNull);
       expect(controller.history.single.details['barcode.value'], isNull);
+      expect(repository.history.single.id, 'scan-1');
       expect(repository.history.single.uidHex, isNull);
+      expect(
+        repository.history.single.identityStability,
+        TagIdentityStability.sessionOnly,
+      );
       controller.dispose();
     },
   );
@@ -188,11 +199,20 @@ void main() {
     expect(saved, isFalse);
     expect(controller.settings.saveRawUidInHistory, isFalse);
     expect(repository.settings.saveRawUidInHistory, isFalse);
-    expect(controller.history.single.uidHex, original.uidHex);
-    expect(repository.history.single.uidHex, original.uidHex);
+    expect(
+      controller.history.single.uidHex,
+      isNull,
+      reason:
+          'the running app must never re-expose data after privacy is disabled',
+    );
+    expect(
+      repository.history.single.uidHex,
+      original.uidHex,
+      reason: 'the simulated disk rewrite failed and remains for retry',
+    );
     expect(
       controller.errorMessage,
-      contains('saved history could not be scrubbed'),
+      contains('saved history could not be scrubbed on disk'),
     );
     expect(
       controller.diagnosticEvents.any(
@@ -234,6 +254,74 @@ void main() {
       controller.dispose();
     },
   );
+  test('initialization enforces current history privacy settings', () async {
+    final _MemoryRepository repository = _MemoryRepository(
+      initialHistory: <NfcScan>[_scan()],
+    );
+    final NfcScanController controller = NfcScanController(
+      readerService: _Reader(),
+      repository: repository,
+      exportService: _NoopExportService(),
+    );
+
+    await controller.initialize();
+
+    expect(controller.history, hasLength(1));
+    expect(controller.history.single.id, 'scan-1');
+    expect(controller.history.single.uidHex, isNull);
+    expect(
+      controller.history.single.identityStability,
+      TagIdentityStability.sessionOnly,
+    );
+    expect(controller.history.single.uidFingerprint, isNot('a' * 64));
+    expect(controller.history.single.ndefRecords, isEmpty);
+    expect(controller.history.single.details['barcode.value'], isNull);
+    expect(repository.history.single.uidHex, isNull);
+    expect(repository.history.single.ndefRecords, isEmpty);
+    expect(repository.history.single.details['barcode.value'], isNull);
+    expect(
+      controller.diagnosticEvents.any(
+        (event) => event.code == 'storage.history.privacy_rewrite',
+      ),
+      isTrue,
+    );
+    controller.dispose();
+  });
+
+  test(
+    'privacy rewrite failure never re-exposes stored sensitive history',
+    () async {
+      final NfcScan original = _scan();
+      final _MemoryRepository repository = _MemoryRepository(
+        initialHistory: <NfcScan>[original],
+        failSaveHistory: true,
+      );
+      final NfcScanController controller = NfcScanController(
+        readerService: _Reader(),
+        repository: repository,
+        exportService: _NoopExportService(),
+      );
+
+      await controller.initialize();
+
+      expect(controller.history.single.uidHex, isNull);
+      expect(controller.history.single.ndefRecords, isEmpty);
+      expect(controller.history.single.details['barcode.value'], isNull);
+      expect(repository.history.single.uidHex, original.uidHex);
+      expect(
+        controller.errorMessage,
+        contains('hidden safely in this session'),
+      );
+      expect(
+        controller.diagnosticEvents.any(
+          (event) => event.code == 'storage.history.privacy_rewrite.failed',
+        ),
+        isTrue,
+      );
+      controller.dispose();
+    },
+  );
+
   test(
     'history load failure is visible without preventing initialization',
     () async {
@@ -252,6 +340,61 @@ void main() {
       controller.dispose();
     },
   );
+  test('clipboard failures do not report false success', () async {
+    final TestDefaultBinaryMessenger messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(SystemChannels.platform, (
+      MethodCall call,
+    ) async {
+      if (call.method == 'Clipboard.setData') {
+        throw PlatformException(code: 'clipboard', message: 'unavailable');
+      }
+      return null;
+    });
+    addTearDown(() {
+      messenger.setMockMethodCallHandler(SystemChannels.platform, null);
+    });
+
+    final NfcScanController controller = NfcScanController(
+      readerService: _Reader(scan: _scan()),
+      repository: _MemoryRepository(),
+      exportService: _NoopExportService(),
+    );
+    await controller.initialize();
+    await controller.startScan();
+
+    final bool copied = await controller.copyCurrentScanJson();
+
+    expect(copied, isFalse);
+    expect(controller.errorMessage, contains('Could not copy scan JSON'));
+    expect(
+      controller.diagnosticEvents.any(
+        (event) => event.code == 'export.copy.failed',
+      ),
+      isTrue,
+    );
+    controller.dispose();
+  });
+
+  test('continuous batch stops when history persistence fails', () async {
+    final _MemoryRepository repository = _MemoryRepository(
+      failSaveHistory: true,
+    );
+    final NfcScanController controller = NfcScanController(
+      readerService: _Reader(scan: _scan()),
+      repository: repository,
+      exportService: _NoopExportService(),
+    );
+    await controller.initialize();
+
+    await controller.startContinuousBatchScan();
+
+    expect(controller.batchScans, hasLength(1));
+    expect(controller.batchAutoContinue, isFalse);
+    expect(controller.history, isEmpty);
+    expect(controller.errorMessage, contains('Could not save scan history'));
+    controller.dispose();
+  });
 }
 
 NfcScanController _controller({required _Reader reader}) {

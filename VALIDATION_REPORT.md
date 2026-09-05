@@ -22,21 +22,25 @@ GitHub Actions is the authoritative software merge gate. It requires:
 - Android debug APK compilation;
 - unsigned iOS debug compilation on macOS.
 A green CI run does not replace physical NFC hardware testing.
-## Local no-emulator validation for the core-v1-polish work
+## Local no-emulator validation for the deep-audit hardening work
 Verified on the maintainer machine without launching an emulator:
 - `dart run tool/validate_project.dart`: passed.
 - strict maintainer bootstrap with `--strict-sdk --single-sdk`: passed against Flutter 3.47.1 / Dart 3.13.1.
 - `flutter analyze`: **0 issues**.
-- `flutter test`: **54/54 tests passed**.
-- Widget smoke coverage includes four-tab navigation, global error visibility, sensitive-setting confirmation, a 320px narrow viewport, 200% text scaling, and dark mode.
+- `flutter test`: **92/92 tests passed**.
+- Line coverage: **76.9% (1319/1716)**. Coverage growth is concentrated in controller concurrency, local persistence, privacy, diagnostics, report encoding, and detail UI rather than generated/platform code.
+- Widget coverage includes four-tab navigation, global error visibility, sensitive-setting confirmation, a 320px narrow viewport, 200% text scaling, dark mode, and a full Tag Details stress pass at 320px + 200% text scaling with technical/NDEF expansion.
 - Android debug APK compilation: passed.
 - Android debug AAB compilation with `android-arm,android-arm64`: passed.
-- Unsigned Android **release AAB** compilation with `android-arm,android-arm64`: passed (32.0 MB); both `armeabi-v7a` and `arm64-v8a` Flutter app libraries are present.
-- iOS `Info.plist` parses successfully and includes the NFC Forum Type 3 / NDEF FeliCa system code `12FC`.
+- Android debug AAB compilation with `android-arm,android-arm64`: passed.
+- Android **release AAB** compilation with `android-arm,android-arm64`: passed (**32.0 MB**); both `armeabi-v7a` and `arm64-v8a` contain `libapp.so`/`libflutter.so`, and no x86_64 Flutter app runtime is packaged.
+- Release AAB signature verification: `jar verified`. The local upload certificate is self-signed, which is normal for an Android upload key; rebuild final store artifacts from merged `main`.
+- iOS `Info.plist` and entitlements parse successfully; `Info.plist` includes NFC Forum Type 3 / NDEF FeliCa system code `12FC` and standard NFC Forum Type 4 / NDEF ISO 7816 AID `D2760000850101`.
 The current direct dependencies are already at their latest resolvable versions. Flutter 3.47.1 emits a future Built-in Kotlin migration warning for the upstream `nfc_manager` plugin; there is no newer resolvable plugin release in the current dependency graph, and the warning does not fail the current Android build.
 ## Core behavior covered by code and automated tests
 - NFC-A / NFC-B (ISO 14443), NFC-V (ISO 15693), and NFC-F (ISO 18092) polling.
 - iOS NFC-F intentionally limited to the standard NFC Forum Type 3 / NDEF system code `12FC`.
+- iOS standard NFC Forum Type 4 / NDEF selection enabled through declared AID `D2760000850101`; arbitrary ISO 7816 application enumeration is not claimed.
 - Single-tag NFC inspection and availability/error handling.
 - Scan start, stop, timeout/error recovery, and lifecycle-safe cancellation.
 - Conservative NFC tag classification without claiming proprietary application identity.
@@ -51,13 +55,14 @@ The current direct dependencies are already at their latest resolvable versions.
 - Lazy Batch and History list construction for larger datasets.
 - Global error visibility from every core tab.
 - Serialized settings mutations merge against the latest committed state so rapid toggles cannot overwrite one another.
-- Transactional history persistence plus privacy-first sensitive-setting changes: future retention stops before historical cleanup, and incomplete cleanup is surfaced globally.
+- Serialized history persistence across scan-save/delete/clear/scrub/privacy rewrites, including recovery after a failed queued write and deterministic behavior under concurrent user actions.
+- Privacy-first sensitive-setting changes: the stricter setting commits first, sensitive history is hidden in memory immediately, disk rewrites are serialized, and startup reapplies/retries the current privacy policy if a previous rewrite was incomplete.
 - Corrupted persisted history/settings are reported instead of silently becoming empty/default data.
 - Searchable local history.
 - Privacy-minimized history defaults and privacy-safe legacy migration.
 - Scan/history JSON export schema **v3**.
 - Diagnostics export schema **v3**.
-- Native Android/iOS report sharing with old TagVerity temp-export cleanup.
+- Native Android/iOS report sharing with failure reporting and 24-hour stale TagVerity temp-export cleanup.
 - Privacy-safe bounded diagnostics.
 - Simplified Settings surface with advanced tag facts moved to per-scan details.
 - Current-tab-only page construction instead of rebuilding four always-mounted tab pages.

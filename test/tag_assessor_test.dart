@@ -41,6 +41,25 @@ void main() {
     expect(assessment.status, TagAssessmentStatus.limited);
     expect(assessment.summary, contains('reading is disabled'));
   });
+  test('missing technology metadata is limited rather than review', () {
+    final TagAssessment assessment = TagAssessor.assess(
+      _scan(technologies: const <String>[]),
+    );
+    expect(assessment.status, TagAssessmentStatus.limited);
+    expect(
+      assessment.items
+          .singleWhere((item) => item.title == 'Tag technology')
+          .state,
+      TagCheckState.info,
+    );
+  });
+  test('missing NDEF status is limited rather than pass', () {
+    final TagAssessment assessment = TagAssessor.assess(
+      _scan(details: const <String, String>{}),
+    );
+    expect(assessment.status, TagAssessmentStatus.limited);
+    expect(assessment.summary, contains('NDEF support was not recorded'));
+  });
   test('NDEF read failure needs review', () {
     expect(
       TagAssessor.assess(
@@ -78,6 +97,7 @@ NfcScan _scan({
     'ndef.recordCount': '0',
   },
   List<String> warnings = const <String>[],
+  List<String> technologies = const <String>['NfcA'],
 }) {
   return NfcScan(
     id: 'scan',
@@ -86,7 +106,7 @@ NfcScan _scan({
     uidHex: uidHex,
     uidFingerprint: '0123456789abcdef',
     identityStability: identityStability,
-    technologies: const <String>['NfcA'],
+    technologies: technologies,
     details: details,
     ndefRecords: const [],
     warnings: warnings,

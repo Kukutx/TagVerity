@@ -10,7 +10,7 @@ abstract final class TagAssessor {
         const TagCheckItem(
           title: 'Tag technology',
           detail: 'The operating system did not expose a technology stack.',
-          state: TagCheckState.warning,
+          state: TagCheckState.info,
         ),
       );
     } else {
@@ -67,13 +67,17 @@ abstract final class TagAssessor {
           'NDEF is available, but content reading is disabled in Settings.',
           TagCheckState.info,
         ),
-        _ when recordCount == 0 => (
+        'ok' when recordCount == 0 => (
           'Standard NDEF is available and currently empty.',
           TagCheckState.info,
         ),
-        _ => (
+        'ok' => (
           '$recordCount standard NDEF record${recordCount == 1 ? '' : 's'} found.',
           TagCheckState.passed,
+        ),
+        _ => (
+          'NDEF is available, but its read status was not recorded.',
+          TagCheckState.info,
         ),
       };
       items.add(
@@ -132,11 +136,27 @@ abstract final class TagAssessor {
         items: List<TagCheckItem>.unmodifiable(items),
       );
     }
-    if (ndefSupport == 'yes' && ndefReadStatus == 'disabled') {
+    final List<String> limitations = <String>[];
+    if (scan.technologies.isEmpty) {
+      limitations.add('the platform did not expose the technology stack');
+    }
+    if (ndefSupport != 'yes' && ndefSupport != 'no') {
+      limitations.add('NDEF support was not recorded');
+    } else if (ndefSupport == 'yes' &&
+        ndefReadStatus != 'ok' &&
+        ndefReadStatus != 'error') {
+      limitations.add(
+        ndefReadStatus == 'disabled'
+            ? 'NDEF content reading is disabled'
+            : 'the NDEF read status was not recorded',
+      );
+    }
+    if (limitations.isNotEmpty) {
       return TagAssessment(
         status: TagAssessmentStatus.limited,
         headline: 'Readable with limits',
-        summary: 'The tag was read successfully, but NDEF content reading is disabled.',
+        summary:
+            'The tag was read successfully, but ${limitations.join('; ')}.',
         items: List<TagCheckItem>.unmodifiable(items),
       );
     }

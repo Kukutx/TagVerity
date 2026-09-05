@@ -41,6 +41,7 @@ class _HistoryPageState extends State<HistoryPage> {
               return _HistoryHeader(
                 controller: widget.controller,
                 historyCount: history.length,
+                historyBusy: widget.controller.historyBusy,
                 onQueryChanged: (String value) =>
                     setState(() => _query = value),
                 onClear: () => _confirmClear(context),
@@ -125,11 +126,13 @@ class _HistoryHeader extends StatelessWidget {
   const _HistoryHeader({
     required this.controller,
     required this.historyCount,
+    required this.historyBusy,
     required this.onQueryChanged,
     required this.onClear,
   });
   final NfcScanController controller;
   final int historyCount;
+  final bool historyBusy;
   final ValueChanged<String> onQueryChanged;
   final VoidCallback onClear;
   @override
@@ -157,11 +160,11 @@ class _HistoryHeader extends StatelessWidget {
             runSpacing: 8,
             children: <Widget>[
               OutlinedButton.icon(
-                onPressed: historyCount == 0
+                onPressed: historyCount == 0 || historyBusy
                     ? null
                     : () async {
-                        await controller.copyHistoryJson();
-                        if (context.mounted) {
+                        final bool copied = await controller.copyHistoryJson();
+                        if (copied && context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text('History JSON copied'),
@@ -173,14 +176,14 @@ class _HistoryHeader extends StatelessWidget {
                 label: const Text('Copy JSON'),
               ),
               OutlinedButton.icon(
-                onPressed: historyCount == 0
+                onPressed: historyCount == 0 || historyBusy
                     ? null
                     : () => unawaited(controller.shareHistoryJson()),
                 icon: const Icon(Icons.ios_share_rounded),
                 label: const Text('Share'),
               ),
               OutlinedButton.icon(
-                onPressed: historyCount == 0 ? null : onClear,
+                onPressed: historyCount == 0 || historyBusy ? null : onClear,
                 icon: const Icon(Icons.delete_sweep_rounded),
                 label: const Text('Clear'),
               ),

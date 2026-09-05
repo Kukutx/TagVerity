@@ -20,7 +20,10 @@ final class SharedPreferencesScanHistoryRepository
   @override
   Future<List<NfcScan>> loadHistory() async {
     final String? current = await _preferences.getString(_historyKey);
-    if (current != null && current.isNotEmpty) {
+    if (current != null) {
+      if (current.isEmpty) {
+        throw const FormatException('Saved scan history is empty or corrupt.');
+      }
       return _decodeHistory(current);
     }
     final String? legacy = await _preferences.getString(_legacyHistoryKey);
@@ -65,22 +68,76 @@ final class SharedPreferencesScanHistoryRepository
   }
 
   void _validateScanJson(Map<String, dynamic> json) {
-    final String id = json['id'] as String? ?? '';
-    final String scannedAt = json['scannedAt'] as String? ?? '';
-    final String platform = json['platform'] as String? ?? '';
-    final String fingerprint = json['uidFingerprint'] as String? ?? '';
-    if (id.isEmpty ||
+    final Object? id = json['id'];
+    final Object? scannedAt = json['scannedAt'];
+    final Object? platform = json['platform'];
+    final Object? uidHex = json['uidHex'];
+    final Object? fingerprint = json['uidFingerprint'];
+    final Object? identityStability = json['identityStability'];
+    final Object? technologies = json['technologies'];
+    final Object? details = json['details'];
+    final Object? records = json['ndefRecords'];
+    final Object? warnings = json['warnings'];
+
+    final bool invalidIdentity =
+        identityStability != null &&
+        (identityStability is! String ||
+            !const <String>{
+              'stable',
+              'sessionOnly',
+              'unknown',
+            }.contains(identityStability));
+    final bool invalid =
+        id is! String ||
+        id.isEmpty ||
+        scannedAt is! String ||
         DateTime.tryParse(scannedAt) == null ||
+        platform is! String ||
         platform.isEmpty ||
+        (uidHex != null && uidHex is! String) ||
+        fingerprint is! String ||
         fingerprint.isEmpty ||
-        json['technologies'] is! List<dynamic> ||
-        json['details'] is! Map<String, dynamic> ||
-        json['ndefRecords'] is! List<dynamic> ||
-        json['warnings'] is! List<dynamic>) {
+        invalidIdentity ||
+        technologies is! List<dynamic> ||
+        technologies.any((Object? item) => item is! String) ||
+        details is! Map<String, dynamic> ||
+        details.values.any((Object? value) => value is! String) ||
+        records is! List<dynamic> ||
+        records.any(
+          (Object? record) =>
+              record is! Map<String, dynamic> ||
+              !_isValidNdefRecordJson(record),
+        ) ||
+        warnings is! List<dynamic> ||
+        warnings.any((Object? item) => item is! String);
+
+    if (invalid) {
       throw const FormatException(
-        'Saved scan history contains an incomplete record.',
+        'Saved scan history contains an incomplete or invalid record.',
       );
     }
+  }
+
+  bool _isValidNdefRecordJson(Map<String, dynamic> json) {
+    final Object? index = json['index'];
+    final Object? typeNameFormat = json['typeNameFormat'];
+    final Object? type = json['type'];
+    final Object? identifierHex = json['identifierHex'];
+    final Object? payloadLength = json['payloadLength'];
+    final Object? byteLength = json['byteLength'];
+    final Object? summary = json['summary'];
+    final Object? payloadPreviewHex = json['payloadPreviewHex'];
+    return index is int &&
+        index >= 0 &&
+        typeNameFormat is String &&
+        type is String &&
+        identifierHex is String &&
+        payloadLength is int &&
+        payloadLength >= 0 &&
+        byteLength is int &&
+        byteLength >= 0 &&
+        summary is String &&
+        payloadPreviewHex is String;
   }
 
   @override
@@ -93,14 +150,18 @@ final class SharedPreferencesScanHistoryRepository
 
   @override
   Future<void> clearHistory() async {
-    await _preferences.remove(_historyKey);
-    await _preferences.remove(_legacyHistoryKey);
+    await _preferences.clear(
+      allowList: <String>{_historyKey, _legacyHistoryKey},
+    );
   }
 
   @override
   Future<ScanSettings> loadSettings() async {
     final String? current = await _preferences.getString(_settingsKey);
-    if (current != null && current.isNotEmpty) {
+    if (current != null) {
+      if (current.isEmpty) {
+        throw const FormatException('Saved settings are empty or corrupt.');
+      }
       return _decodeSettings(current);
     }
     final String? legacy = await _preferences.getString(_legacySettingsKey);
@@ -122,6 +183,17 @@ final class SharedPreferencesScanHistoryRepository
     }
     if (decoded is! Map<String, dynamic>) {
       throw const FormatException('Saved settings have an invalid shape.');
+    }
+    for (final String key in const <String>{
+      'readNdef',
+      'saveRawUidInHistory',
+      'saveNdefInHistory',
+      'saveTechnicalIdentifiersInHistory',
+    }) {
+      final Object? value = decoded[key];
+      if (value != null && value is! bool) {
+        throw FormatException('Saved setting "$key" is not a boolean.');
+      }
     }
     return ScanSettings.fromJson(decoded);
   }

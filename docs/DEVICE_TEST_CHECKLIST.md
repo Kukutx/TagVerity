@@ -23,6 +23,7 @@ This checklist is the final v1.0 gate that automated tests cannot replace. Softw
 - [ ] Read a known NFC-A tag.
 - [ ] Read an NFC-B tag if available.
 - [ ] Read an ISO-DEP smart card if available without claiming its proprietary application or validity.
+- [ ] On iPhone, read a standard NFC Forum Type 4 / NDEF tag through AID `D2760000850101` if available; confirm TagVerity does not claim arbitrary ISO 7816 application support.
 ### NFC-V / ISO 15693
 - [ ] Android detects and labels an NFC-V tag.
 - [ ] Android shows public NFC-V metadata where the controller exposes it.
@@ -48,9 +49,9 @@ This checklist is the final v1.0 gate that automated tests cannot replace. Softw
 ## History & privacy
 - [ ] New history entries omit raw UID by default.
 - [ ] New history entries omit NDEF content by default.
-- [ ] Linkable technical fields are removed by default.
+- [ ] Linkable technical fields and the comparable tag fingerprint are removed by default; saved identity is session-only.
 - [ ] Enabling each sensitive retention setting works only after confirmation.
-- [ ] Turning a sensitive retention setting off removes the matching already-saved data.
+- [ ] Turning a sensitive retention setting off hides matching already-saved data immediately, then persists the rewrite.
 - [ ] “Remove sensitive saved data” clears raw UID, retained NDEF, and linkable technical identifiers together.
 - [ ] Search finds entries by technology/fingerprint/content that is actually retained.
 - [ ] Swipe-to-delete only removes a row after persistence succeeds.
@@ -61,7 +62,7 @@ This checklist is the final v1.0 gate that automated tests cannot replace. Softw
 - [ ] Trigger an error from Batch/History/Settings and confirm the banner is visible without switching to Inspect.
 - [ ] Dismiss the global error banner successfully.
 - [ ] Share scan JSON, history JSON, and batch CSV through the system share sheet.
-- [ ] Repeated exports do not accumulate old `tagverity-*` temporary files indefinitely.
+- [ ] Repeated exports clean TagVerity temporary files older than 24 hours without deleting the most recent shared report immediately.
 ## Android
 - [ ] Test on at least two NFC-capable Android phones if available.
 - [ ] Confirm app resumes after scan timeout.
@@ -74,6 +75,7 @@ This checklist is the final v1.0 gate that automated tests cannot replace. Softw
 - [ ] Continuous batch mode rearms by reopening the system sheet rather than pretending iOS supports silent polling.
 - [ ] ISO 15693 works on a physical iPhone when a test tag is available.
 - [ ] Type 3 / `12FC` NFC-F works when a matching tag is available.
+- [ ] Type 4 / NDEF works with AID `D2760000850101` when a matching tag is available.
 - [ ] Signed Xcode Archive succeeds with the NFC entitlement and usage description.
 ## Regression / safety boundary
 - [ ] No tag-writing UI exists.

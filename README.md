@@ -62,9 +62,10 @@ assets/branding/         TagVerity logo and app-icon sources
 By default, saved history does **not** retain:
 - raw UID;
 - NDEF payload content;
-- selected linkable technical identifiers.
-A SHA-256 fingerprint derived from an OS-exposed identifier is still pseudonymous and may correlate scans. If the OS exposes no comparable identifier, TagVerity marks the scan as session-only and skips repeated-ID checks.
-Turning a sensitive retention setting off also removes the matching saved data from existing history before the setting change is committed.
+- selected linkable technical identifiers;
+- the comparable fingerprint derived from an OS-exposed tag identifier.
+The current scan can use a comparable SHA-256 fingerprint when the OS exposes an identifier, but default saved history replaces that value with a per-scan session-only fingerprint. Session-only values are never used as proof of physical-tag identity or for repeated-ID checks.
+Turning a sensitive retention setting off commits the stricter setting first, immediately hides matching data in memory, and then serializes the history rewrite to disk. If that rewrite fails, TagVerity keeps the data hidden in the running app, reports the failure, and reapplies the privacy policy on the next launch.
 See `docs/PRIVACY_MODEL.md` for the full model.
 ## Product focus
 TagVerity 1.0 focuses on three jobs:

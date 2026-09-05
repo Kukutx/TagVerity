@@ -43,11 +43,19 @@ import UIKit
     result: @escaping FlutterResult
   ) {
     let temporaryDirectory = FileManager.default.temporaryDirectory
+    let staleBefore = Date().addingTimeInterval(-24 * 60 * 60)
     if let urls = try? FileManager.default.contentsOfDirectory(
       at: temporaryDirectory,
-      includingPropertiesForKeys: nil
+      includingPropertiesForKeys: [.contentModificationDateKey]
     ) {
       for url in urls where url.lastPathComponent.hasPrefix("tagverity-") {
+        guard
+          let values = try? url.resourceValues(forKeys: [.contentModificationDateKey]),
+          let modified = values.contentModificationDate,
+          modified < staleBefore
+        else {
+          continue
+        }
         try? FileManager.default.removeItem(at: url)
       }
     }

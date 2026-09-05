@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+
+import '../utils/clipboard_feedback.dart';
 
 class KeyValueRow extends StatelessWidget {
   const KeyValueRow({
@@ -32,13 +33,9 @@ class KeyValueRow extends StatelessWidget {
           if (copyable && value.isNotEmpty)
             IconButton(
               visualDensity: VisualDensity.compact,
-              tooltip: '复制',
+              tooltip: 'Copy',
               onPressed: () async {
-                await Clipboard.setData(ClipboardData(text: value));
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context)
-                      .showSnackBar(const SnackBar(content: Text('已复制到剪贴板')));
-                }
+                await ClipboardFeedback.copy(context, value);
               },
               icon: const Icon(Icons.copy_rounded, size: 18),
             ),

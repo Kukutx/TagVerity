@@ -75,8 +75,9 @@ class DiagnosticsPage extends StatelessWidget {
                     Expanded(
                       child: OutlinedButton.icon(
                         onPressed: () async {
-                          await controller.copyDiagnosticsJson();
-                          if (context.mounted) {
+                          final bool copied = await controller
+                              .copyDiagnosticsJson();
+                          if (copied && context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text('Diagnostics JSON copied'),
