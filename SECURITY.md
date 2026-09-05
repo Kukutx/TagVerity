@@ -5,7 +5,7 @@
 TagVerity only performs:
 
 - NFC availability checks;
-- ISO 14443 tag discovery;
+- ISO 14443, ISO 15693 / NFC-V, and ISO 18092 / NFC-F tag discovery within the configured platform scope;
 - public tag identifiers and technology metadata exposed by Android/iOS;
 - read-only standard NDEF parsing;
 - local scan history, batch inspection, privacy scrubbing, and explicit exports.
@@ -32,7 +32,7 @@ TagVerity does not implement:
 - Diagnostics are memory-only and redact identifier-like values.
 - No network, analytics, ads, telemetry, or background upload is implemented.
 
-Stable SHA-256 fingerprints are pseudonymous, not anonymous, and can correlate the same exposed UID over time. Session-only fingerprints are marked as such and are not used for duplicate comparison.
+Stable SHA-256 fingerprints are pseudonymous, not anonymous, and can correlate the same exposed UID over time. Session-only fingerprints are marked as such and are not used for repeated-ID comparison.
 
 ## Reporting security issues
 

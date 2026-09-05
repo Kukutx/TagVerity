@@ -66,6 +66,10 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>com.apple.developer.nfc.readersession.felica.systemcodes</key>
+	<array>
+		<string>12FC</string>
+	</array>
 	<key>NFCReaderUsageDescription</key>
 	<string>TagVerity reads NFC tags you intentionally scan to inspect public tag information.</string>
 </dict>

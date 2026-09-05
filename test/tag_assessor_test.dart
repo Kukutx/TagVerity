@@ -5,56 +5,60 @@ import 'package:tagverity/domain/models/tag_identity_stability.dart';
 import 'package:tagverity/domain/services/tag_assessor.dart';
 
 void main() {
-  test('assessor marks a clean readable NDEF tag as healthy', () {
-    final NfcScan scan = _scan(
-      details: const <String, String>{
-        'ndef.supported': 'yes',
-        'ndef.recordCount': '1',
-      },
+  test('clean readable NDEF tag is healthy', () {
+    expect(
+      TagAssessor.assess(
+        _scan(
+          details: const <String, String>{
+            'ndef.supported': 'yes',
+            'ndef.readStatus': 'ok',
+            'ndef.recordCount': '1',
+          },
+        ),
+      ).status,
+      TagAssessmentStatus.healthy,
     );
-
-    expect(TagAssessor.assess(scan).status, TagAssessmentStatus.healthy);
   });
-
-  test('assessor keeps privacy-scrubbed history assessment healthy', () {
-    final NfcScan scan = _scan(
-      uidHex: null,
-      details: const <String, String>{
-        'ndef.supported': 'yes',
-        'ndef.recordCount': '1',
-      },
+  test('non-NDEF smart card can still pass basic checks', () {
+    final TagAssessment assessment = TagAssessor.assess(
+      _scan(details: const <String, String>{'ndef.supported': 'no'}),
     );
-
-    expect(TagAssessor.assess(scan).status, TagAssessmentStatus.healthy);
-  });
-
-  test('assessor marks read warnings for review', () {
-    final NfcScan scan = _scan(warnings: const <String>['Read warning']);
-
-    expect(TagAssessor.assess(scan).status, TagAssessmentStatus.review);
-  });
-
-  test('assessor marks non-NDEF tags as limited', () {
-    final NfcScan scan = _scan(
-      details: const <String, String>{'ndef.supported': 'no'},
+    expect(assessment.status, TagAssessmentStatus.healthy);
+    expect(
+      assessment.items.singleWhere((item) => item.title == 'NDEF').state,
+      TagCheckState.info,
     );
-
-    expect(TagAssessor.assess(scan).status, TagAssessmentStatus.limited);
   });
-
+  test('disabled NDEF reading is limited without claiming no NDEF support', () {
+    final TagAssessment assessment = TagAssessor.assess(
+      _scan(
+        details: const <String, String>{
+          'ndef.supported': 'yes',
+          'ndef.readStatus': 'disabled',
+        },
+      ),
+    );
+    expect(assessment.status, TagAssessmentStatus.limited);
+    expect(assessment.summary, contains('reading is disabled'));
+  });
+  test('NDEF read failure needs review', () {
+    expect(
+      TagAssessor.assess(
+        _scan(
+          details: const <String, String>{
+            'ndef.supported': 'yes',
+            'ndef.readStatus': 'error',
+          },
+          warnings: const <String>['Could not read standard NDEF'],
+        ),
+      ).status,
+      TagAssessmentStatus.review,
+    );
+  });
   test('session-only identity is informational rather than review', () {
-    final NfcScan scan = _scan(
-      uidHex: null,
-      identityStability: TagIdentityStability.sessionOnly,
-      details: const <String, String>{
-        'ndef.supported': 'yes',
-        'ndef.readStatus': 'ok',
-        'ndef.recordCount': '1',
-      },
+    final TagAssessment assessment = TagAssessor.assess(
+      _scan(uidHex: null, identityStability: TagIdentityStability.sessionOnly),
     );
-
-    final TagAssessment assessment = TagAssessor.assess(scan);
-
     expect(assessment.status, TagAssessmentStatus.healthy);
     expect(
       assessment.items
@@ -63,46 +67,16 @@ void main() {
       TagCheckState.info,
     );
   });
-
-  test('empty readable NDEF stays healthy', () {
-    final NfcScan scan = _scan(
-      details: const <String, String>{
-        'ndef.supported': 'yes',
-        'ndef.readStatus': 'ok',
-        'ndef.recordCount': '0',
-      },
-    );
-
-    expect(TagAssessor.assess(scan).status, TagAssessmentStatus.healthy);
-  });
-
-  test('disabled NDEF reading is limited', () {
-    final NfcScan scan = _scan(
-      details: const <String, String>{
-        'ndef.supported': 'yes',
-        'ndef.readStatus': 'disabled',
-      },
-    );
-
-    expect(TagAssessor.assess(scan).status, TagAssessmentStatus.limited);
-  });
-
-  test('NDEF read failure needs review', () {
-    final NfcScan scan = _scan(
-      details: const <String, String>{
-        'ndef.supported': 'yes',
-        'ndef.readStatus': 'error',
-      },
-    );
-
-    expect(TagAssessor.assess(scan).status, TagAssessmentStatus.review);
-  });
 }
 
 NfcScan _scan({
   String? uidHex = '04:AA:BB:CC',
   TagIdentityStability identityStability = TagIdentityStability.stable,
-  Map<String, String> details = const <String, String>{'ndef.supported': 'yes'},
+  Map<String, String> details = const <String, String>{
+    'ndef.supported': 'yes',
+    'ndef.readStatus': 'ok',
+    'ndef.recordCount': '0',
+  },
   List<String> warnings = const <String>[],
 }) {
   return NfcScan(

@@ -8,7 +8,6 @@ import 'byte_utils.dart';
 
 abstract final class NdefDecoder {
   static const int maximumSummaryCharacters = 300;
-
   static List<NdefRecordInfo> decodeMessage(NdefMessage message) {
     return <NdefRecordInfo>[
       for (int index = 0; index < message.records.length; index++)
@@ -38,6 +37,9 @@ abstract final class NdefDecoder {
       return _decodeUri(record.payload);
     }
     if (record.typeNameFormat == TypeNameFormat.media) {
+      if (!_isTextualMediaType(type)) {
+        return 'Media record: $type (${record.payload.length} bytes)';
+      }
       final String text = _decodeUtf8(record.payload);
       return text.isEmpty
           ? 'Media record: $type (${record.payload.length} bytes)'
@@ -60,7 +62,6 @@ abstract final class NdefDecoder {
     if (payload.isEmpty) {
       return 'Empty text record';
     }
-
     final int status = payload.first;
     final bool utf16 = (status & 0x80) != 0;
     final int languageLength = status & 0x3F;
@@ -68,12 +69,10 @@ abstract final class NdefDecoder {
     if (languageLength > payload.length - 1 || textStart > payload.length) {
       return 'Invalid text record';
     }
-
     final String language = _decodeAsciiStrict(payload.sublist(1, textStart));
     if (languageLength > 0 && language.isEmpty) {
       return 'Invalid text record';
     }
-
     final Uint8List textBytes = Uint8List.fromList(payload.sublist(textStart));
     final String text = utf16
         ? _decodeUtf16(textBytes)
@@ -93,13 +92,11 @@ abstract final class NdefDecoder {
     if (payload.isEmpty) {
       return 'Empty URI record';
     }
-
     final int prefixCode = payload.first;
     final String body = _decodeUtf8(payload.sublist(1));
     if (payload.length > 1 && body.isEmpty) {
       return 'Invalid URI record';
     }
-
     final String? prefix = _uriPrefixes[prefixCode];
     if (prefix == null) {
       final String code =
@@ -109,6 +106,15 @@ abstract final class NdefDecoder {
           : 'URI with unknown prefix $code: $body';
     }
     return '$prefix$body';
+  }
+
+  static bool _isTextualMediaType(String type) {
+    final String normalized = type.trim().toLowerCase();
+    return normalized.startsWith('text/') ||
+        normalized == 'application/json' ||
+        normalized == 'application/xml' ||
+        normalized.endsWith('+json') ||
+        normalized.endsWith('+xml');
   }
 
   static String _decodeAsciiStrict(Iterable<int> bytes) {
@@ -126,7 +132,6 @@ abstract final class NdefDecoder {
     if (bytes.isEmpty) {
       return '';
     }
-
     int offset = 0;
     bool littleEndian = false;
     if (bytes.length >= 2) {
@@ -137,11 +142,9 @@ abstract final class NdefDecoder {
         offset = 2;
       }
     }
-
     if ((bytes.length - offset).isOdd) {
       return '';
     }
-
     final List<int> codeUnits = <int>[];
     for (int index = offset; index < bytes.length; index += 2) {
       final int unit = littleEndian
@@ -149,7 +152,6 @@ abstract final class NdefDecoder {
           : (bytes[index] << 8) | bytes[index + 1];
       codeUnits.add(unit);
     }
-
     try {
       final String value = String.fromCharCodes(codeUnits).trim();
       return _isMostlyPrintable(value) ? value : '';

@@ -1,20 +1,16 @@
 import Flutter
 import UIKit
-
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
   private var shareChannel: FlutterMethodChannel?
-
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
-
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
-
     shareChannel = FlutterMethodChannel(
       name: "dev.kukutx.tagverity/share",
       binaryMessenger: engineBridge.applicationRegistrar.messenger()
@@ -41,15 +37,22 @@ import UIKit
       self?.shareTextFile(filename: filename, content: content, result: result)
     }
   }
-
   private func shareTextFile(
     filename: String,
     content: String,
     result: @escaping FlutterResult
   ) {
+    let temporaryDirectory = FileManager.default.temporaryDirectory
+    if let urls = try? FileManager.default.contentsOfDirectory(
+      at: temporaryDirectory,
+      includingPropertiesForKeys: nil
+    ) {
+      for url in urls where url.lastPathComponent.hasPrefix("tagverity-") {
+        try? FileManager.default.removeItem(at: url)
+      }
+    }
     let safeFilename = URL(fileURLWithPath: filename).lastPathComponent
-    let fileURL = FileManager.default.temporaryDirectory.appendingPathComponent(safeFilename)
-
+    let fileURL = temporaryDirectory.appendingPathComponent(safeFilename)
     do {
       try content.write(to: fileURL, atomically: true, encoding: .utf8)
     } catch {
@@ -62,7 +65,6 @@ import UIKit
       )
       return
     }
-
     DispatchQueue.main.async { [weak self] in
       guard let presenter = self?.activeViewController() else {
         result(
@@ -74,7 +76,6 @@ import UIKit
         )
         return
       }
-
       let controller = UIActivityViewController(
         activityItems: [fileURL],
         applicationActivities: nil
@@ -92,7 +93,6 @@ import UIKit
       result(nil)
     }
   }
-
   private func activeViewController() -> UIViewController? {
     let activeScene = UIApplication.shared.connectedScenes
       .compactMap { $0 as? UIWindowScene }
@@ -100,7 +100,6 @@ import UIKit
     let window = activeScene?.windows.first { $0.isKeyWindow } ?? activeScene?.windows.first
     return topViewController(from: window?.rootViewController)
   }
-
   private func topViewController(from root: UIViewController?) -> UIViewController? {
     if let navigation = root as? UINavigationController {
       return topViewController(from: navigation.visibleViewController)

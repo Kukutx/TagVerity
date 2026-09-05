@@ -17,7 +17,7 @@
     "events"
   ],
   "properties": {
-    "schemaVersion": {"const": 2},
+    "schemaVersion": {"const": 3},
     "app": {"type": "string"},
     "appVersion": {"type": "string"},
     "exportedAt": {"type": "string", "format": "date-time"},
@@ -32,23 +32,15 @@
       "additionalProperties": false,
       "required": [
         "readNdef",
-        "platformSounds",
         "saveRawUidInHistory",
         "saveNdefInHistory",
-        "saveTechnicalIdentifiersInHistory",
-        "showAdvancedFields",
-        "scanTimeoutSeconds",
-        "historyLimit"
+        "saveTechnicalIdentifiersInHistory"
       ],
       "properties": {
         "readNdef": {"type": "boolean"},
-        "platformSounds": {"type": "boolean"},
         "saveRawUidInHistory": {"type": "boolean"},
         "saveNdefInHistory": {"type": "boolean"},
-        "saveTechnicalIdentifiersInHistory": {"type": "boolean"},
-        "showAdvancedFields": {"type": "boolean"},
-        "scanTimeoutSeconds": {"type": "integer", "minimum": 5, "maximum": 120},
-        "historyLimit": {"type": "integer", "minimum": 10, "maximum": 500}
+        "saveTechnicalIdentifiersInHistory": {"type": "boolean"}
       }
     },
     "events": {

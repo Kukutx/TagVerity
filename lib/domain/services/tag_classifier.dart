@@ -4,7 +4,6 @@ import '../models/tag_classification.dart';
 abstract final class TagClassifier {
   static TagClassification classify(NfcScan scan) {
     final Map<String, String> details = scan.details;
-
     if (details['mifare.classic.type'] case final String type) {
       return TagClassification(
         label: 'MIFARE Classic',
@@ -12,7 +11,6 @@ abstract final class TagClassifier {
         confidence: TagClassificationConfidence.high,
       );
     }
-
     if (details['mifare.ultralight.type'] case final String type) {
       return TagClassification(
         label: 'MIFARE Ultralight-compatible',
@@ -22,7 +20,26 @@ abstract final class TagClassifier {
         confidence: TagClassificationConfidence.high,
       );
     }
-
+    if (details.containsKey('nfcv.dsfId') ||
+        details.containsKey('ios.iso15693.icManufacturerCode')) {
+      return const TagClassification(
+        label: 'NFC-V / ISO 15693',
+        detail:
+            'The tag uses ISO 15693 / NFC-V. TagVerity reports only public '
+            'metadata exposed by the phone.',
+        confidence: TagClassificationConfidence.high,
+      );
+    }
+    if (details.containsKey('nfcf.systemCode') ||
+        details.containsKey('ios.felica.systemCode')) {
+      return const TagClassification(
+        label: 'NFC-F / FeliCa-compatible',
+        detail:
+            'The tag uses NFC-F / ISO 18092. On iPhone, TagVerity polls the '
+            'standard NFC Forum Type 3 NDEF system code only.',
+        confidence: TagClassificationConfidence.high,
+      );
+    }
     if (details['ios.mifare.family'] case final String family) {
       return TagClassification(
         label: 'MIFARE-compatible',
@@ -30,7 +47,6 @@ abstract final class TagClassifier {
         confidence: TagClassificationConfidence.high,
       );
     }
-
     if (details['isodep.supported'] == 'yes' ||
         details['ios.iso7816.supported'] == 'yes') {
       return const TagClassification(
@@ -41,8 +57,21 @@ abstract final class TagClassifier {
         confidence: TagClassificationConfidence.medium,
       );
     }
-
     final String protocol = details['protocol'] ?? '';
+    if (protocol.contains('NFC-V')) {
+      return const TagClassification(
+        label: 'NFC-V / ISO 15693',
+        detail: 'The operating system reported NFC-V / ISO 15693.',
+        confidence: TagClassificationConfidence.high,
+      );
+    }
+    if (protocol.contains('NFC-F')) {
+      return const TagClassification(
+        label: 'NFC-F / FeliCa-compatible',
+        detail: 'The operating system reported NFC-F / ISO 18092.',
+        confidence: TagClassificationConfidence.high,
+      );
+    }
     if (protocol.contains('NFC-B')) {
       return const TagClassification(
         label: 'NFC-B tag',
@@ -50,7 +79,6 @@ abstract final class TagClassifier {
         confidence: TagClassificationConfidence.high,
       );
     }
-
     if (details['ndef.supported'] == 'yes') {
       return const TagClassification(
         label: 'NDEF NFC tag',
@@ -60,10 +88,27 @@ abstract final class TagClassifier {
         confidence: TagClassificationConfidence.medium,
       );
     }
-
     final Set<String> technologies = scan.technologies
         .map((String value) => value.toLowerCase())
         .toSet();
+    if (technologies.any(
+      (String value) => value.contains('nfcv') || value.contains('iso15693'),
+    )) {
+      return const TagClassification(
+        label: 'NFC-V / ISO 15693',
+        detail: 'The operating system reported NFC-V / ISO 15693.',
+        confidence: TagClassificationConfidence.medium,
+      );
+    }
+    if (technologies.any(
+      (String value) => value.contains('nfcf') || value.contains('felica'),
+    )) {
+      return const TagClassification(
+        label: 'NFC-F / FeliCa-compatible',
+        detail: 'The operating system reported NFC-F / ISO 18092.',
+        confidence: TagClassificationConfidence.medium,
+      );
+    }
     if (technologies.any((String value) => value.contains('nfca'))) {
       return const TagClassification(
         label: 'NFC-A tag',
@@ -78,7 +123,6 @@ abstract final class TagClassifier {
         confidence: TagClassificationConfidence.medium,
       );
     }
-
     if (scan.technologies.isEmpty) {
       return const TagClassification(
         label: 'Unknown NFC tag',
@@ -87,7 +131,6 @@ abstract final class TagClassifier {
         confidence: TagClassificationConfidence.low,
       );
     }
-
     return TagClassification(
       label: 'NFC tag',
       detail:
