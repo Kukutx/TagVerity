@@ -16,6 +16,7 @@ TagVerity has no account system, advertising SDK, analytics SDK, telemetry, netw
 | Selected linkable protocol fields | yes | no | yes |
 | NDEF payload/summary | yes | no | yes |
 Sensitive retention options are off by default. Enabling one requires explicit user confirmation.
+Settings mutations are serialized and each queued change is applied against the latest committed settings, preventing rapid switch changes from overwriting one another.
 Turning a sensitive retention option **off** is privacy-first: TagVerity first persists the disabled setting so future scans stop retaining that field, then rewrites existing history with the matching saved data removed. If historical cleanup fails, the setting remains disabled, the old saved data stays visible, and a global error tells the user to retry cleanup.
 The Settings page also provides one **Remove sensitive saved data** action that removes saved raw UID, retained NDEF, and selected linkable technical fields together. Success is reported only after the local write succeeds.
 Legacy pre-TagVerity history is migrated with raw UID, NDEF content, and selected linkable technical fields removed by default.

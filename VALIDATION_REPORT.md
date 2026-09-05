@@ -27,7 +27,7 @@ Verified on the maintainer machine without launching an emulator:
 - `dart run tool/validate_project.dart`: passed.
 - strict maintainer bootstrap with `--strict-sdk --single-sdk`: passed against Flutter 3.47.1 / Dart 3.13.1.
 - `flutter analyze`: **0 issues**.
-- `flutter test`: **53/53 tests passed**.
+- `flutter test`: **54/54 tests passed**.
 - Widget smoke coverage includes four-tab navigation, global error visibility, sensitive-setting confirmation, a 320px narrow viewport, 200% text scaling, and dark mode.
 - Android debug APK compilation: passed.
 - Android debug AAB compilation with `android-arm,android-arm64`: passed.
@@ -50,6 +50,7 @@ The current direct dependencies are already at their latest resolvable versions.
 - Cached single-pass Batch summary metrics.
 - Lazy Batch and History list construction for larger datasets.
 - Global error visibility from every core tab.
+- Serialized settings mutations merge against the latest committed state so rapid toggles cannot overwrite one another.
 - Transactional history persistence plus privacy-first sensitive-setting changes: future retention stops before historical cleanup, and incomplete cleanup is surfaced globally.
 - Corrupted persisted history/settings are reported instead of silently becoming empty/default data.
 - Searchable local history.

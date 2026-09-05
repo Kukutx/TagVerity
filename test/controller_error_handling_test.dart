@@ -141,7 +141,7 @@ void main() {
     );
     await controller.initialize();
     final bool saved = await controller.updateSettings(
-      controller.settings.copyWith(readNdef: false),
+      (ScanSettings current) => current.copyWith(readNdef: false),
     );
     expect(saved, isFalse);
     expect(controller.settings.readNdef, isTrue);
@@ -161,7 +161,7 @@ void main() {
     );
     await controller.initialize();
     final bool saved = await controller.updateSettings(
-      controller.settings.copyWith(saveRawUidInHistory: false),
+      (ScanSettings current) => current.copyWith(saveRawUidInHistory: false),
     );
     expect(saved, isTrue);
     expect(controller.settings.saveRawUidInHistory, isFalse);
@@ -183,7 +183,7 @@ void main() {
     );
     await controller.initialize();
     final bool saved = await controller.updateSettings(
-      controller.settings.copyWith(saveRawUidInHistory: false),
+      (ScanSettings current) => current.copyWith(saveRawUidInHistory: false),
     );
     expect(saved, isFalse);
     expect(controller.settings.saveRawUidInHistory, isFalse);
@@ -202,6 +202,38 @@ void main() {
     );
     controller.dispose();
   });
+  test(
+    'rapid settings updates merge against the latest committed state',
+    () async {
+      final _MemoryRepository repository = _MemoryRepository(
+        initialSettings: const ScanSettings(
+          saveRawUidInHistory: true,
+          saveNdefInHistory: true,
+        ),
+      );
+      final NfcScanController controller = NfcScanController(
+        readerService: _Reader(),
+        repository: repository,
+        exportService: _NoopExportService(),
+      );
+      await controller.initialize();
+      final Future<bool> rawUpdate = controller.updateSettings(
+        (ScanSettings current) => current.copyWith(saveRawUidInHistory: false),
+      );
+      final Future<bool> ndefUpdate = controller.updateSettings(
+        (ScanSettings current) => current.copyWith(saveNdefInHistory: false),
+      );
+      expect(controller.settingsBusy, isTrue);
+      expect(await rawUpdate, isTrue);
+      expect(await ndefUpdate, isTrue);
+      expect(controller.settings.saveRawUidInHistory, isFalse);
+      expect(controller.settings.saveNdefInHistory, isFalse);
+      expect(repository.settings.saveRawUidInHistory, isFalse);
+      expect(repository.settings.saveNdefInHistory, isFalse);
+      expect(controller.settingsBusy, isFalse);
+      controller.dispose();
+    },
+  );
   test(
     'history load failure is visible without preventing initialization',
     () async {

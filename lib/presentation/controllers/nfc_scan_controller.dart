@@ -50,6 +50,8 @@ final class NfcScanController extends ChangeNotifier
   bool _initialized = false;
   bool _isScanning = false;
   bool _disposed = false;
+  Future<void> _settingsMutationTail = Future<void>.value();
+  int _pendingSettingsMutations = 0;
   bool _batchSessionActive = false;
   bool _batchAutoContinue = false;
   bool _captureNextScanInBatch = false;
@@ -64,6 +66,7 @@ final class NfcScanController extends ChangeNotifier
   String? get errorMessage => _errorMessage;
   bool get initialized => _initialized;
   bool get isScanning => _isScanning;
+  bool get settingsBusy => _pendingSettingsMutations > 0;
   bool get batchSessionActive => _batchSessionActive;
   bool get batchAutoContinue => _batchAutoContinue;
   DateTime? get batchStartedAt => _batchStartedAt;
@@ -361,7 +364,35 @@ final class NfcScanController extends ChangeNotifier
     );
   }
 
-  Future<bool> updateSettings(ScanSettings nextSettings) async {
+  Future<bool> updateSettings(
+    ScanSettings Function(ScanSettings current) transform,
+  ) {
+    final Completer<bool> completer = Completer<bool>();
+    _pendingSettingsMutations++;
+    _notify();
+    _settingsMutationTail = _settingsMutationTail.then((_) async {
+      try {
+        if (_disposed) {
+          completer.complete(false);
+          return;
+        }
+        final bool result = await _applySettings(transform(_settings));
+        completer.complete(result);
+      } on Object catch (error) {
+        _setError(
+          'Could not apply settings: ${ErrorText.clean(error)}',
+          code: 'settings.update.failed',
+        );
+        completer.complete(false);
+      } finally {
+        _pendingSettingsMutations--;
+        _notify();
+      }
+    });
+    return completer.future;
+  }
+
+  Future<bool> _applySettings(ScanSettings nextSettings) async {
     final ScanSettings previous = _settings;
     final bool disablingSensitiveRetention =
         (previous.saveRawUidInHistory && !nextSettings.saveRawUidInHistory) ||

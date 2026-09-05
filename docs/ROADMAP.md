@@ -32,6 +32,7 @@ TagVerity is developed **core-first**. Reliability, clear NFC semantics, privacy
 - [x] Local scan history and search with lazy result rendering.
 - [x] Raw UID, NDEF content, and linkable technical identifiers disabled in history by default.
 - [x] Transactional history mutations: UI only reports success after persistence succeeds.
+- [x] Settings mutations are serialized against the latest committed state so rapid toggles cannot re-enable stale values.
 - [x] Disabling sensitive retention is privacy-first: future retention stops before historical cleanup, and cleanup failure stays visible.
 - [x] Corrupt local history/settings surface an error instead of silently pretending data is empty.
 - [x] JSON export for scans/history and CSV export for batches.

@@ -16,6 +16,7 @@ class SettingsPage extends StatelessWidget {
       listenable: controller,
       builder: (BuildContext context, Widget? child) {
         final ScanSettings settings = controller.settings;
+        final bool settingsBusy = controller.settingsBusy;
         return ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
           children: <Widget>[
@@ -28,9 +29,14 @@ class SettingsPage extends StatelessWidget {
                   'Read-only; TagVerity never writes or formats tags',
                 ),
                 value: settings.readNdef,
-                onChanged: (bool value) => unawaited(
-                  controller.updateSettings(settings.copyWith(readNdef: value)),
-                ),
+                onChanged: settingsBusy
+                    ? null
+                    : (bool value) => unawaited(
+                        controller.updateSettings(
+                          (ScanSettings current) =>
+                              current.copyWith(readNdef: value),
+                        ),
+                      ),
               ),
             ),
             const SizedBox(height: 14),
@@ -44,30 +50,36 @@ class SettingsPage extends StatelessWidget {
                     title: const Text('Save raw UID in history'),
                     subtitle: const Text('Off by default'),
                     value: settings.saveRawUidInHistory,
-                    onChanged: (bool value) => unawaited(
-                      _changeSensitiveSetting(
-                        context,
-                        value: value,
-                        title: 'Save raw UID?',
-                        message: 'A raw UID can remain associated with the same physical tag. Enable this only if you need it.',
-                        updated: settings.copyWith(saveRawUidInHistory: value),
-                      ),
-                    ),
+                    onChanged: settingsBusy
+                        ? null
+                        : (bool value) => unawaited(
+                            _changeSensitiveSetting(
+                              context,
+                              value: value,
+                              title: 'Save raw UID?',
+                              message: 'A raw UID can remain associated with the same physical tag. Enable this only if you need it.',
+                              update: (ScanSettings current) =>
+                                  current.copyWith(saveRawUidInHistory: value),
+                            ),
+                          ),
                   ),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Save NDEF content in history'),
                     subtitle: const Text('Off by default'),
                     value: settings.saveNdefInHistory,
-                    onChanged: (bool value) => unawaited(
-                      _changeSensitiveSetting(
-                        context,
-                        value: value,
-                        title: 'Save NDEF content?',
-                        message: 'NDEF may contain text, URLs, contact information, or other public payloads.',
-                        updated: settings.copyWith(saveNdefInHistory: value),
-                      ),
-                    ),
+                    onChanged: settingsBusy
+                        ? null
+                        : (bool value) => unawaited(
+                            _changeSensitiveSetting(
+                              context,
+                              value: value,
+                              title: 'Save NDEF content?',
+                              message: 'NDEF may contain text, URLs, contact information, or other public payloads.',
+                              update: (ScanSettings current) =>
+                                  current.copyWith(saveNdefInHistory: value),
+                            ),
+                          ),
                   ),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
@@ -76,21 +88,24 @@ class SettingsPage extends StatelessWidget {
                       'Off by default; not needed for normal inspection',
                     ),
                     value: settings.saveTechnicalIdentifiersInHistory,
-                    onChanged: (bool value) => unawaited(
-                      _changeSensitiveSetting(
-                        context,
-                        value: value,
-                        title: 'Save technical identifiers?',
-                        message: 'Some public protocol fields may help correlate the same tag or card over time.',
-                        updated: settings.copyWith(
-                          saveTechnicalIdentifiersInHistory: value,
-                        ),
-                      ),
-                    ),
+                    onChanged: settingsBusy
+                        ? null
+                        : (bool value) => unawaited(
+                            _changeSensitiveSetting(
+                              context,
+                              value: value,
+                              title: 'Save technical identifiers?',
+                              message: 'Some public protocol fields may help correlate the same tag or card over time.',
+                              update: (ScanSettings current) =>
+                                  current.copyWith(
+                                    saveTechnicalIdentifiersInHistory: value,
+                                  ),
+                            ),
+                          ),
                   ),
                   const SizedBox(height: 8),
                   OutlinedButton.icon(
-                    onPressed: controller.history.isEmpty
+                    onPressed: settingsBusy || controller.history.isEmpty
                         ? null
                         : () async {
                             final bool removed = await controller
@@ -153,7 +168,7 @@ class SettingsPage extends StatelessWidget {
     required bool value,
     required String title,
     required String message,
-    required ScanSettings updated,
+    required ScanSettings Function(ScanSettings current) update,
   }) async {
     if (value) {
       final bool? confirmed = await _confirmSensitiveSetting(
@@ -165,7 +180,7 @@ class SettingsPage extends StatelessWidget {
         return;
       }
     }
-    final bool saved = await controller.updateSettings(updated);
+    final bool saved = await controller.updateSettings(update);
     if (saved && !value && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
