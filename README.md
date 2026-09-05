@@ -1,4 +1,4 @@
-﻿# TagVerity: NFC Inspector
+# TagVerity: NFC Inspector
 TagVerity is a privacy-first, read-only NFC inspection app for Android and iOS. It focuses on reliable real-world tag checking rather than card cloning or protocol experimentation.
 ## What it does
 - Inspect NFC-A / NFC-B (ISO 14443), NFC-V (ISO 15693), and NFC-F (ISO 18092) tags exposed by the phone.

@@ -1,4 +1,4 @@
-﻿# Store listing draft
+# Store listing draft
 ## Product identity
 - App name: **TagVerity: NFC Inspector**
 - Short display name: **TagVerity**

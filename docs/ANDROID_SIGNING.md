@@ -1,4 +1,4 @@
-﻿# Android release signing
+# Android release signing
 TagVerity uses a private Google Play upload key for release builds.
 ## Current maintainer machine
 A local upload key is expected at:

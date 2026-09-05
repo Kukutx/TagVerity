@@ -1,4 +1,4 @@
-﻿# Diagnostics
+# Diagnostics
 TagVerity keeps a small redacted diagnostic event buffer **in memory** for troubleshooting. Diagnostics are available from **Settings → Diagnostics**.
 Diagnostics may include:
 - app initialization;

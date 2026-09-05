@@ -1,4 +1,4 @@
-﻿$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Stop"
 Set-Location (Join-Path $PSScriptRoot "..")
 if (-not (Test-Path "android/key.properties")) {
   throw "Missing android/key.properties. Configure the private Google Play upload key first; see docs/ANDROID_SIGNING.md."

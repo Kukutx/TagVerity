@@ -1,4 +1,4 @@
-﻿name: TagVerity CI
+name: TagVerity CI
 on:
   push:
     branches: [main]

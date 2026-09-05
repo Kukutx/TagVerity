@@ -1,4 +1,4 @@
-﻿package dev.kukutx.tagverity
+package dev.kukutx.tagverity
 import android.content.Intent
 import androidx.core.content.FileProvider
 import io.flutter.embedding.android.FlutterActivity

@@ -1,4 +1,4 @@
-﻿# Platform notes
+# Platform notes
 ## Android
 - Polling covers NFC-A / NFC-B (`ISO 14443`), NFC-V (`ISO 15693`), and NFC-F (`ISO 18092`).
 - Continuous Batch starts a new reader session only after the previous native session has closed; there is no timing-based rearm delay.

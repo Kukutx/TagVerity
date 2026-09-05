@@ -1,4 +1,4 @@
-﻿# Architecture
+# Architecture
 ## Product layers
 ### Domain
 The domain layer is plugin-independent and contains:

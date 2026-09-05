@@ -1,4 +1,4 @@
-﻿# Security and scope
+# Security and scope
 
 ## Allowed scope
 
