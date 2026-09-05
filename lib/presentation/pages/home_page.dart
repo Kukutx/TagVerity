@@ -31,37 +31,7 @@ class HomePage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
-                  Row(
-                    children: <Widget>[
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: Image.asset(
-                          'assets/branding/tagverity_app_icon.png',
-                          width: 58,
-                          height: 58,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Text(
-                              'Inspect an NFC tag',
-                              style: Theme.of(context).textTheme.titleLarge
-                                  ?.copyWith(fontWeight: FontWeight.w800),
-                            ),
-                            const SizedBox(height: 3),
-                            const Text(
-                              'Read, check, and understand a tag in one tap.',
-                            ),
-                          ],
-                        ),
-                      ),
-                      StatusBadge(status: controller.supportStatus),
-                    ],
-                  ),
+                  _InspectHeader(controller: controller),
                   const SizedBox(height: 18),
                   FilledButton.icon(
                     onPressed:
@@ -108,6 +78,69 @@ class HomePage extends StatelessWidget {
                 'send arbitrary APDUs, or modify protected tag memory.',
               ),
             ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _InspectHeader extends StatelessWidget {
+  const _InspectHeader({required this.controller});
+  final NfcScanController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final double textScale = MediaQuery.textScalerOf(context).scale(1);
+        final bool stackStatus = textScale > 1.3 || constraints.maxWidth < 260;
+        final Widget intro = Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Image.asset(
+                'assets/branding/tagverity_app_icon.png',
+                width: 58,
+                height: 58,
+                fit: BoxFit.cover,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    'Inspect an NFC tag',
+                    style: Theme.of(context).textTheme.titleLarge
+                        ?.copyWith(fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 3),
+                  const Text('Read, check, and understand a tag in one tap.'),
+                ],
+              ),
+            ),
+          ],
+        );
+        final Widget status = StatusBadge(status: controller.supportStatus);
+        if (stackStatus) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              intro,
+              const SizedBox(height: 12),
+              Align(alignment: Alignment.centerLeft, child: status),
+            ],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Expanded(child: intro),
+            const SizedBox(width: 12),
+            status,
           ],
         );
       },

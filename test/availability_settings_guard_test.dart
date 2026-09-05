@@ -35,6 +35,36 @@ void main() {
     },
   );
 
+  test('older availability results cannot overwrite newer refreshes', () async {
+    final _SequencedAvailabilityReader reader = _SequencedAvailabilityReader();
+    final NfcScanController controller = _controller(
+      reader,
+      _MemoryRepository(),
+    );
+    await controller.initialize();
+
+    final Completer<NfcSupportStatus> older = Completer<NfcSupportStatus>();
+    final Completer<NfcSupportStatus> newer = Completer<NfcSupportStatus>();
+    reader.responses
+      ..add(older.future)
+      ..add(newer.future);
+
+    final Future<NfcSupportStatus> olderRefresh = controller
+        .refreshAvailability();
+    final Future<NfcSupportStatus> newerRefresh = controller
+        .refreshAvailability();
+
+    newer.complete(NfcSupportStatus.disabled);
+    expect(await newerRefresh, NfcSupportStatus.disabled);
+    expect(controller.supportStatus, NfcSupportStatus.disabled);
+
+    older.complete(NfcSupportStatus.enabled);
+    expect(await olderRefresh, NfcSupportStatus.enabled);
+    expect(controller.supportStatus, NfcSupportStatus.disabled);
+
+    controller.dispose();
+  });
+
   test('scanning is blocked while a settings write is pending', () async {
     final _BlockingSettingsRepository repository =
         _BlockingSettingsRepository();
@@ -95,6 +125,29 @@ NfcScanController _controller(
     repository: repository,
     exportService: _NoopExportService(),
   );
+}
+
+final class _SequencedAvailabilityReader implements NfcReaderService {
+  final List<Future<NfcSupportStatus>> responses = <Future<NfcSupportStatus>>[];
+  int _availabilityCalls = 0;
+
+  @override
+  Future<NfcSupportStatus> checkAvailability() {
+    if (_availabilityCalls++ == 0) {
+      return Future<NfcSupportStatus>.value(NfcSupportStatus.enabled);
+    }
+    return responses.removeAt(0);
+  }
+
+  @override
+  Future<void> startScan({
+    required ScanSettings settings,
+    required ScanResultCallback onScan,
+    required ScanErrorCallback onError,
+  }) async {}
+
+  @override
+  Future<void> stopScan() async {}
 }
 
 final class _Reader implements NfcReaderService {

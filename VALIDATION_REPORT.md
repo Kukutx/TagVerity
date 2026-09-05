@@ -1,5 +1,5 @@
 # TagVerity validation report
-Validation date: 2026-09-05  
+Validation date: 2026-09-06
 App version: 1.0.0+1
 ## Current validation baseline
 TagVerity is a public, privacy-first, read-only NFC Inspector / Tag Checker / Batch Scanner.
@@ -18,7 +18,8 @@ GitHub Actions is the authoritative software merge gate. It requires:
 - scan-export and diagnostics-export schema validation;
 - app/schema version consistency validation;
 - `flutter analyze`;
-- the complete Flutter test suite;
+- the complete Flutter test suite with LCOV coverage collection;
+- a minimum **75% line coverage** floor;
 - Android debug APK compilation;
 - unsigned iOS debug compilation on macOS.
 A green CI run does not replace physical NFC hardware testing.
@@ -27,12 +28,12 @@ Verified on the maintainer machine without launching an emulator:
 - `dart run tool/validate_project.dart`: passed.
 - strict maintainer bootstrap with `--strict-sdk --single-sdk`: passed against Flutter 3.47.1 / Dart 3.13.1.
 - `flutter analyze`: **0 issues**.
-- `flutter test`: **94/94 tests passed**.
-- Line coverage: **76.8% (1322/1721)**. Coverage growth is concentrated in controller concurrency, local persistence, privacy, diagnostics, report encoding, and detail UI rather than generated/platform code.
-- Widget coverage includes four-tab navigation, global error visibility, sensitive-setting confirmation, a 320px narrow viewport, 200% text scaling, dark mode, and a full Tag Details stress pass at 320px + 200% text scaling with technical/NDEF expansion.
+- `flutter test --coverage`: **105/105 tests passed**.
+- Line coverage: **77.9% (1397/1794)**, above the enforced **75%** floor. Coverage growth is concentrated in controller concurrency, local persistence, privacy, accessibility, diagnostics, report encoding, and detail UI rather than generated/platform code.
+- Widget coverage includes four-tab navigation, global error visibility, sensitive-setting confirmation, dark mode, **all four core tabs at 320px + 200% text scaling**, populated Inspect/Batch/History results at the same stress size, and a full Tag Details stress pass with technical/NDEF expansion.
 - Android debug APK compilation: passed.
 - Android debug AAB compilation with `android-arm,android-arm64`: passed.
-- Android **release AAB** compilation with `android-arm,android-arm64`: passed (**32.0 MB**); both `armeabi-v7a` and `arm64-v8a` contain `libapp.so`/`libflutter.so`, and no x86_64 Flutter app runtime is packaged.
+- Android **release AAB** compilation with `android-arm,android-arm64`: passed (**32.1 MB**); both `armeabi-v7a` and `arm64-v8a` contain `libapp.so`/`libflutter.so`, and no x86_64 Flutter app runtime is packaged.
 - Release AAB signature verification: `jar verified`. The local upload certificate is self-signed, which is normal for an Android upload key; rebuild final store artifacts from merged `main`.
 - iOS `Info.plist` and entitlements parse successfully; `Info.plist` includes NFC Forum Type 3 / NDEF FeliCa system code `12FC` and standard NFC Forum Type 4 / NDEF ISO 7816 AID `D2760000850101`.
 The current direct dependencies are already at their latest resolvable versions. Flutter 3.47.1 emits a future Built-in Kotlin migration warning for the upstream `nfc_manager` plugin; there is no newer resolvable plugin release in the current dependency graph, and the warning does not fail the current Android build.
@@ -54,17 +55,22 @@ The current direct dependencies are already at their latest resolvable versions.
 - Lazy Batch and History list construction for larger datasets.
 - Global error visibility from every core tab.
 - Serialized settings mutations merge against the latest committed state so rapid toggles cannot overwrite one another.
+- Overlapping NFC availability refreshes use latest-request-wins semantics so an older slow result cannot overwrite newer support state.
 - Serialized history persistence across scan-save/delete/clear/scrub/privacy rewrites, including recovery after a failed queued write and deterministic behavior under concurrent user actions.
 - Privacy-first sensitive-setting changes: the stricter setting commits first, sensitive history is hidden in memory immediately, disk rewrites are serialized, and startup reapplies/retries the current privacy policy if a previous rewrite was incomplete.
 - Corrupted persisted history/settings are reported instead of silently becoming empty/default data.
 - Searchable local history.
-- Privacy-minimized history defaults and privacy-safe legacy migration, including replacement of legacy UID-derived fingerprints with session-only history fingerprints.
+- Privacy-minimized history defaults and privacy-safe legacy migration, including replacement of legacy UID-derived fingerprints with session-only history fingerprints and replacement of early event IDs that embedded a fingerprint prefix.
+- Saved scan warnings are normalized to generic categories before history retention; malformed JSON parse failures use fixed messages rather than echoing persisted source text.
+- Default technical metadata retention is allowlist-based so unknown/future detail keys are not silently written to privacy-minimized history.
+- After current history becomes authoritative, the stale legacy history key is blanked before deletion is attempted so a failed remove cannot strand raw UID/NDEF data.
 - NFC-F manufacturer/PMm-style metadata is treated as linkable technical data and scrubbed when technical-identifier retention is disabled.
 - Persisted history rejects schema-incompatible fingerprints and duplicate technology entries instead of exporting malformed scan records.
 - Scan/history JSON export schema **v3**.
 - Diagnostics export schema **v3**.
-- Native Android/iOS report sharing with failure reporting and 24-hour stale TagVerity temp-export cleanup.
-- Privacy-safe bounded diagnostics.
+- Native Android/iOS report sharing with failure reporting and 24-hour stale TagVerity temp-export cleanup; iOS exports use a TagVerity-specific temporary subdirectory.
+- Android release manifest disables app-data backup and both legacy/full-backup and Android 12+ extraction rules exclude app-private files/DataStore, preferences, databases, root, and external app data; the project validator enforces the rule wiring.
+- Privacy-safe diagnostics bounded by event count, string length, collection size, and nesting depth.
 - Simplified Settings surface with advanced tag facts moved to per-scan details.
 - Current-tab-only page construction instead of rebuilding four always-mounted tab pages.
 ## Platform validation

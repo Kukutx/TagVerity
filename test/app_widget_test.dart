@@ -5,6 +5,7 @@ import 'package:tagverity/data/nfc/nfc_reader_service.dart';
 import 'package:tagverity/domain/models/nfc_scan.dart';
 import 'package:tagverity/domain/models/nfc_support_status.dart';
 import 'package:tagverity/domain/models/scan_settings.dart';
+import 'package:tagverity/domain/models/tag_identity_stability.dart';
 import 'package:tagverity/domain/repositories/scan_history_repository.dart';
 import 'package:tagverity/domain/services/export_service.dart';
 import 'package:tagverity/presentation/controllers/nfc_scan_controller.dart';
@@ -111,6 +112,72 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('Inspect an NFC tag'), findsOneWidget);
   });
+  testWidgets('all core tabs tolerate narrow 200 percent text layout', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    final NfcScanController controller = await _controller();
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(TagVerityApp(controller: controller));
+    await tester.pumpAndSettle();
+    expect(
+      tester.takeException(),
+      isNull,
+      reason: 'Inspect should not overflow',
+    );
+
+    for (final String tab in <String>['Batch', 'History', 'Settings']) {
+      await tester.tap(find.text(tab).last);
+      await tester.pumpAndSettle();
+      expect(
+        tester.takeException(),
+        isNull,
+        reason: '$tab should not overflow',
+      );
+    }
+  });
+
+  testWidgets(
+    'populated core results tolerate narrow 200 percent text layout',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      final NfcScanController controller = await _controller(
+        reader: _WidgetReader(scan: _stressScan()),
+      );
+      addTearDown(controller.dispose);
+      await controller.startScan();
+      controller.startBatchSession();
+      await controller.startBatchScan();
+      await tester.pumpWidget(TagVerityApp(controller: controller));
+      await tester.pumpAndSettle();
+      expect(
+        tester.takeException(),
+        isNull,
+        reason: 'Latest scan should not overflow',
+      );
+
+      for (final String tab in <String>['Batch', 'History']) {
+        await tester.tap(find.text(tab).last);
+        await tester.pumpAndSettle();
+        expect(
+          tester.takeException(),
+          isNull,
+          reason: 'Populated $tab should not overflow',
+        );
+      }
+    },
+  );
+
   testWidgets('dark mode renders the core shell without exceptions', (
     WidgetTester tester,
   ) async {
@@ -139,9 +206,28 @@ Future<NfcScanController> _controller({
   return controller;
 }
 
+NfcScan _stressScan() {
+  return NfcScan(
+    id: 'scan-stress',
+    scannedAt: DateTime.utc(2026, 9, 5),
+    platform: 'android',
+    uidFingerprint:
+        '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+    identityStability: TagIdentityStability.sessionOnly,
+    technologies: const <String>['NfcA', 'IsoDep'],
+    details: const <String, String>{
+      'ndef.supported': 'no',
+      'ndef.readStatus': 'not-supported',
+    },
+    ndefRecords: const [],
+    warnings: const <String>[],
+  );
+}
+
 final class _WidgetReader implements NfcReaderService {
-  _WidgetReader({this.scanError});
+  _WidgetReader({this.scanError, this.scan});
   final String? scanError;
+  final NfcScan? scan;
   @override
   Future<NfcSupportStatus> checkAvailability() async =>
       NfcSupportStatus.enabled;
@@ -153,6 +239,10 @@ final class _WidgetReader implements NfcReaderService {
   }) async {
     if (scanError case final String message) {
       onError(message);
+      return;
+    }
+    if (scan case final NfcScan value) {
+      await onScan(value);
     }
   }
 

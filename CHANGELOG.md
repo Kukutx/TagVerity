@@ -14,9 +14,16 @@
 - Legacy pre-TagVerity history now replaces UID-derived stable fingerprints during migration instead of briefly carrying them into the current history key.
 - NFC-F manufacturer/PMm-style metadata is now treated as linkable technical data and removed from privacy-minimized history.
 - Persisted history validation now enforces the public export schema's SHA-256 fingerprint shape and unique technology list.
+- Legacy scan IDs that embedded the first 12 hexadecimal characters of a UID-derived fingerprint are replaced with privacy-safe event IDs during migration/startup cleanup.
+- Legacy warning strings and malformed-JSON errors no longer carry raw platform or persisted payload text into saved history/global diagnostics.
+- Once the current history key is authoritative, the stale legacy key is overwritten with an empty value before deletion so a failed remove cannot strand raw UID/NDEF data.
+- Default technical metadata retention now uses an explicit reviewed allowlist; unknown/future detail keys are dropped rather than silently persisted.
+- Android app-data backup/device-transfer paths are explicitly disabled/excluded, including the DataStore/file and legacy SharedPreferences domains.
+- Added latest-request-wins guards for overlapping NFC availability refreshes so stale results cannot overwrite newer state.
 - Added startup privacy enforcement so previously retained sensitive history is hidden immediately and rewritten to match current settings.
 - Added standard NFC Forum Type 4 / NDEF AID `D2760000850101` for iOS without claiming arbitrary ISO 7816 application discovery.
 - Added recursive diagnostics sanitization, clean platform-error text, NFC availability timeout/failure handling, and false-success protection for clipboard copies.
+- Bounded individual diagnostic strings, collections, and nesting depth so malformed runtime data cannot inflate troubleshooting exports.
 - Fixed a narrow-screen / large-text `SectionCard` overflow found by a 320px + 200% text-scale stress test.
 - Added per-process scan sequencing to event IDs to avoid timestamp-collision keys.
 ### Reliability, privacy, and performance
@@ -28,7 +35,7 @@
 - Turning sensitive retention off is now privacy-first: the stricter setting is committed first, in-memory history is scrubbed immediately, and the on-disk rewrite is serialized behind any in-flight history write.
 - Malformed persisted history/settings now surfaces a storage error rather than silently appearing empty.
 - Consolidated sensitive-history cleanup into one action.
-- Native Android/iOS sharing now removes only `tagverity-*` temporary export files older than 24 hours, avoiding premature deletion while a receiving app may still be reading a report.
+- Native Android/iOS sharing now removes only `tagverity-*` temporary export files older than 24 hours, avoiding premature deletion while a receiving app may still be reading a report; iOS exports are isolated under a TagVerity-specific temporary subdirectory.
 - Hardened NDEF media summaries so binary MIME payloads are not displayed as decoded text.
 ### UX and maintainability
 - Simplified Settings to NDEF reading plus privacy controls; moved runtime diagnostics to a dedicated page.
@@ -39,6 +46,8 @@
 - Open-source bootstrap now accepts compatible SDKs by default while retaining maintainer-only `--strict-sdk --single-sdk` enforcement.
 - Google Play store script now targets ARM32 + ARM64; the development APK remains ARM64-focused.
 - Added Widget Tests for core navigation, global errors, and a 320px-wide phone surface.
+- Added combined 320px + 200% text-scale smoke coverage for all core tabs plus populated Inspect/Batch/History results; fixed the responsive Inspect status header, status badge, and Batch metric grid uncovered by that stress pass.
+- Added a 75% minimum line-coverage gate to the local check scripts and GitHub CI; the hardened baseline currently exceeds it.
 - Expanded automated coverage with scan-lifecycle races, serialized history mutations, SharedPreferences migration/corruption tests, recursive diagnostics redaction, report encoding, clipboard failures, availability/settings guards, and a 320px + 200% text-scale Tag Details stress test.
 ### Previously completed core work
 - Added comparable-ID vs session-only NFC identity semantics so repeated-ID checks never claim physical-tag uniqueness when the platform lacks a comparable identifier.

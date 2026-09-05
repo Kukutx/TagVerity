@@ -39,7 +39,7 @@ void main() {
     });
 
     test('legacy history migrates with sensitive fields scrubbed', () async {
-      final scan = _scan();
+      final scan = _scan(id: '1780000000000000-abcdef123456');
       final store = InMemorySharedPreferencesAsync.withData(<String, Object>{
         'nfc_inspector.history.v1': jsonEncode(<Object?>[scan.toJson()]),
       });
@@ -52,6 +52,9 @@ void main() {
       final history = await repository.loadHistory();
 
       expect(history, hasLength(1));
+      expect(history.single.id, isNot(scan.id));
+      expect(history.single.id, contains('-migrated-1'));
+      expect(history.single.id, isNot(contains('abcdef123456')));
       expect(history.single.uidHex, isNull);
       expect(history.single.uidFingerprint, isNot(scan.uidFingerprint));
       expect(history.single.uidFingerprint, matches(RegExp(r'^[0-9a-f]{64}$')));
@@ -71,9 +74,72 @@ void main() {
           jsonDecode(migratedJson!) as List<dynamic>;
       final Map<String, dynamic> persistedScan =
           persisted.single as Map<String, dynamic>;
+      expect(persistedScan['id'], history.single.id);
       expect(persistedScan['uidHex'], isNull);
       expect(persistedScan['uidFingerprint'], history.single.uidFingerprint);
       expect(persistedScan['identityStability'], 'sessionOnly');
+    });
+
+    test('legacy history is blanked before a failed key removal', () async {
+      final NfcScan scan = _scan(id: '1780000000000000-abcdef123456');
+      final String rawLegacy = jsonEncode(<Object?>[scan.toJson()]);
+      final store = _FailLegacyHistoryClearStore(<String, Object>{
+        'nfc_inspector.history.v1': rawLegacy,
+      });
+      SharedPreferencesAsyncPlatform.instance = store;
+      final prefs = SharedPreferencesAsync();
+      final repository = SharedPreferencesScanHistoryRepository(
+        preferences: prefs,
+      );
+
+      final List<NfcScan> history = await repository.loadHistory();
+
+      expect(history, hasLength(1));
+      expect(await prefs.getString('nfc_inspector.history.v1'), '[]');
+      expect(await prefs.getString('tagverity.history.v2'), isNotNull);
+      expect(
+        await prefs.getString('nfc_inspector.history.v1'),
+        isNot(contains('04:AA:BB:CC')),
+      );
+    });
+
+    test('legacy history removes raw warning error payloads', () async {
+      final Map<String, Object?> json = _scan().toJson();
+      json['warnings'] = <String>[
+        'Could not read standard NDEF: private@example.com',
+      ];
+      final store = InMemorySharedPreferencesAsync.withData(<String, Object>{
+        'nfc_inspector.history.v1': jsonEncode(<Object?>[json]),
+      });
+      SharedPreferencesAsyncPlatform.instance = store;
+      final repository = SharedPreferencesScanHistoryRepository(
+        preferences: SharedPreferencesAsync(),
+      );
+
+      final List<NfcScan> history = await repository.loadHistory();
+
+      expect(history.single.warnings, const <String>[
+        'Could not read standard NDEF.',
+      ]);
+    });
+
+    test('invalid JSON errors do not echo persisted scan content', () async {
+      const String sensitive = 'private-ndef@example.com';
+      final store = InMemorySharedPreferencesAsync.withData(<String, Object>{
+        'tagverity.history.v2': '{"payload":"$sensitive"',
+      });
+      SharedPreferencesAsyncPlatform.instance = store;
+      final repository = SharedPreferencesScanHistoryRepository(
+        preferences: SharedPreferencesAsync(),
+      );
+
+      try {
+        await repository.loadHistory();
+        fail('Expected malformed history to throw.');
+      } on FormatException catch (error) {
+        expect(error.message, 'Saved scan history is not valid JSON.');
+        expect(error.toString(), isNot(contains(sensitive)));
+      }
     });
 
     test('corrupt current history is reported instead of hidden', () async {
@@ -283,6 +349,23 @@ final class _FailCurrentHistoryClearStore
     if (parameters.filter.allowList?.contains('tagverity.history.v2') ??
         false) {
       throw StateError('simulated current-history clear failure');
+    }
+    return super.clear(parameters, options);
+  }
+}
+
+final class _FailLegacyHistoryClearStore
+    extends InMemorySharedPreferencesAsync {
+  _FailLegacyHistoryClearStore(super.data) : super.withData();
+
+  @override
+  Future<bool> clear(
+    ClearPreferencesParameters parameters,
+    SharedPreferencesOptions options,
+  ) async {
+    if (parameters.filter.allowList?.contains('nfc_inspector.history.v1') ??
+        false) {
+      throw StateError('simulated legacy-history remove failure');
     }
     return super.clear(parameters, options);
   }

@@ -32,8 +32,10 @@ jobs:
           python -c "import json,pathlib; schema=json.loads(pathlib.Path('docs/nfc-scan-export.schema.json').read_text()); defs=schema[chr(36)+'defs']; assert all(set(defs[name]['required']).issubset(set(defs[name]['properties'])) for name in ('scan','ndefRecord')); assert defs['scan']['properties']['identityStability']['enum'] == ['stable','sessionOnly','unknown']"
       - name: Analyze
         run: flutter analyze
-      - name: Test
-        run: flutter test
+      - name: Test with coverage
+        run: flutter test --coverage
+      - name: Enforce coverage floor
+        run: dart run tool/check_coverage.dart coverage/lcov.info 75
       - name: Compile Android debug APK
         run: flutter build apk --debug
   ios-build:

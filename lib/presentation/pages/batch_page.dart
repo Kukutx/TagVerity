@@ -168,38 +168,43 @@ class _BatchSummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return SectionCard(
       title: 'Summary',
-      child: Column(
-        children: <Widget>[
-          Row(
+      child: LayoutBuilder(
+        builder: (BuildContext context, BoxConstraints constraints) {
+          final double textScale = MediaQuery.textScalerOf(context).scale(1);
+          final int columns = textScale > 1.3 || constraints.maxWidth < 420
+              ? 2
+              : 4;
+          const double spacing = 8;
+          final double itemWidth =
+              (constraints.maxWidth - spacing * (columns - 1)) / columns;
+          final List<_Metric> metrics = <_Metric>[
+            _Metric(label: 'Scanned', value: summary.total.toString()),
+            _Metric(label: 'Pass', value: summary.healthy.toString()),
+            _Metric(label: 'Limited', value: summary.limited.toString()),
+            _Metric(label: 'Review', value: summary.review.toString()),
+            _Metric(label: 'Comparable', value: summary.comparable.toString()),
+            _Metric(
+              label: 'Distinct IDs',
+              value: summary.distinctComparableIds.toString(),
+            ),
+            _Metric(
+              label: 'Repeated IDs',
+              value: summary.repeatedIdCount.toString(),
+            ),
+            _Metric(
+              label: 'Session-only',
+              value: summary.sessionOnly.toString(),
+            ),
+          ];
+          return Wrap(
+            spacing: spacing,
+            runSpacing: 14,
             children: <Widget>[
-              _Metric(label: 'Scanned', value: summary.total.toString()),
-              _Metric(label: 'Pass', value: summary.healthy.toString()),
-              _Metric(label: 'Limited', value: summary.limited.toString()),
-              _Metric(label: 'Review', value: summary.review.toString()),
+              for (final _Metric metric in metrics)
+                SizedBox(width: itemWidth, child: metric),
             ],
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: <Widget>[
-              _Metric(
-                label: 'Comparable',
-                value: summary.comparable.toString(),
-              ),
-              _Metric(
-                label: 'Distinct IDs',
-                value: summary.distinctComparableIds.toString(),
-              ),
-              _Metric(
-                label: 'Repeated IDs',
-                value: summary.repeatedIdCount.toString(),
-              ),
-              _Metric(
-                label: 'Session-only',
-                value: summary.sessionOnly.toString(),
-              ),
-            ],
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -247,17 +252,19 @@ class _Metric extends StatelessWidget {
   final String value;
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Column(
-        children: <Widget>[
-          Text(
-            value,
-            style: Theme.of(context).textTheme.headlineSmall
-                ?.copyWith(fontWeight: FontWeight.w800),
-          ),
-          Text(label, style: Theme.of(context).textTheme.bodySmall),
-        ],
-      ),
+    return Column(
+      children: <Widget>[
+        Text(
+          value,
+          style: Theme.of(context).textTheme.headlineSmall
+              ?.copyWith(fontWeight: FontWeight.w800),
+        ),
+        Text(
+          label,
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+      ],
     );
   }
 }

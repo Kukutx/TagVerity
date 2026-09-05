@@ -68,6 +68,46 @@ void main() {
       !requiredSettings.containsAll(expectedSettings)) {
     _fail('Diagnostics schema settings no longer match ScanSettings.');
   }
+
+  final String androidManifest = File(
+    'android/app/src/main/AndroidManifest.xml',
+  ).readAsStringSync();
+  if (!androidManifest.contains('android:allowBackup="false"') ||
+      !androidManifest.contains(
+        'android:fullBackupContent="@xml/backup_rules"',
+      ) ||
+      !androidManifest.contains(
+        'android:dataExtractionRules="@xml/data_extraction_rules"',
+      )) {
+    _fail('Android backup protections are missing from the release manifest.');
+  }
+  const Set<String> backupDomains = <String>{
+    'root',
+    'file',
+    'database',
+    'sharedpref',
+    'external',
+  };
+  final String legacyBackupRules = File(
+    'android/app/src/main/res/xml/backup_rules.xml',
+  ).readAsStringSync();
+  if (backupDomains.any(
+    (String domain) => _backupExclusionCount(legacyBackupRules, domain) < 1,
+  )) {
+    _fail('Android 11-and-lower backup rules do not exclude all app data.');
+  }
+  final String dataExtractionRules = File(
+    'android/app/src/main/res/xml/data_extraction_rules.xml',
+  ).readAsStringSync();
+  if (!dataExtractionRules.contains('<cloud-backup>') ||
+      !dataExtractionRules.contains('<device-transfer>') ||
+      backupDomains.any(
+        (String domain) =>
+            _backupExclusionCount(dataExtractionRules, domain) < 2,
+      )) {
+    _fail('Android 12+ cloud/D2D rules do not exclude all app data.');
+  }
+
   final String infoPlist = File('ios/Runner/Info.plist').readAsStringSync();
   if (!infoPlist.contains(
         'com.apple.developer.nfc.readersession.felica.systemcodes',
@@ -79,6 +119,12 @@ void main() {
     'Project metadata OK: version ${appVersion.group(1)}, '
     'scan schema $scanVersion, diagnostics schema $diagnosticsVersion.',
   );
+}
+
+int _backupExclusionCount(String source, String domain) {
+  return RegExp('<exclude\\s+domain="$domain"\\s+path="\\."\\s*/>')
+      .allMatches(source)
+      .length;
 }
 
 int _constantInt(String source, String name) {
