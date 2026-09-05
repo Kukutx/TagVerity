@@ -6,7 +6,9 @@ import '../../domain/models/ndef_record_info.dart';
 import '../../domain/models/nfc_scan.dart';
 import '../../domain/models/scan_settings.dart';
 import '../../domain/models/tag_fact_catalog.dart';
+import '../../domain/models/tag_identity_stability.dart';
 import '../../domain/repositories/scan_history_repository.dart';
+import '../../domain/services/history_privacy.dart';
 
 final class SharedPreferencesScanHistoryRepository
     implements ScanHistoryRepository {
@@ -16,6 +18,7 @@ final class SharedPreferencesScanHistoryRepository
   static const String _settingsKey = 'tagverity.settings.v2';
   static const String _legacyHistoryKey = 'nfc_inspector.history.v1';
   static const String _legacySettingsKey = 'nfc_inspector.settings.v1';
+  static final RegExp _fingerprintPattern = RegExp(r'^[0-9a-f]{64}$');
   final SharedPreferencesAsync _preferences;
   @override
   Future<List<NfcScan>> loadHistory() async {
@@ -34,6 +37,8 @@ final class SharedPreferencesScanHistoryRepository
         .map(
           (NfcScan scan) => scan.copyWith(
             uidHex: null,
+            uidFingerprint: HistoryPrivacy.sessionFingerprint(scan),
+            identityStability: TagIdentityStability.sessionOnly,
             details: TagFactCatalog.privacyScrubbedDetails(scan.details),
             ndefRecords: const <NdefRecordInfo>[],
           ),
@@ -96,10 +101,11 @@ final class SharedPreferencesScanHistoryRepository
         platform.isEmpty ||
         (uidHex != null && uidHex is! String) ||
         fingerprint is! String ||
-        fingerprint.isEmpty ||
+        !_fingerprintPattern.hasMatch(fingerprint) ||
         invalidIdentity ||
         technologies is! List<dynamic> ||
         technologies.any((Object? item) => item is! String) ||
+        technologies.toSet().length != technologies.length ||
         details is! Map<String, dynamic> ||
         details.values.any((Object? value) => value is! String) ||
         records is! List<dynamic> ||

@@ -11,6 +11,9 @@
 - Added scan request/session generation guards so rapid taps, stop-during-start, stale native callbacks, and old NFC sessions cannot corrupt a newer scan.
 - Serialized all history persistence so scan saves, delete, clear, scrub, and privacy rewrites cannot overwrite each other from stale snapshots; one failed queued write no longer poisons later operations.
 - Default saved history no longer retains a comparable tag fingerprint when technical identifiers are disabled; it keeps the scan event ID but replaces tag identity with a session-only per-scan fingerprint.
+- Legacy pre-TagVerity history now replaces UID-derived stable fingerprints during migration instead of briefly carrying them into the current history key.
+- NFC-F manufacturer/PMm-style metadata is now treated as linkable technical data and removed from privacy-minimized history.
+- Persisted history validation now enforces the public export schema's SHA-256 fingerprint shape and unique technology list.
 - Added startup privacy enforcement so previously retained sensitive history is hidden immediately and rewritten to match current settings.
 - Added standard NFC Forum Type 4 / NDEF AID `D2760000850101` for iOS without claiming arbitrary ISO 7816 application discovery.
 - Added recursive diagnostics sanitization, clean platform-error text, NFC availability timeout/failure handling, and false-success protection for clipboard copies.

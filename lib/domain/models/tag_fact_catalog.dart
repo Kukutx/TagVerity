@@ -16,6 +16,7 @@ abstract final class TagFactCatalog {
   };
   static const Set<String> linkableKeys = <String>{
     'nfcb.applicationData',
+    'nfcf.manufacturer',
     'nfcb.protocolInfo',
     'isodep.historicalBytes',
     'isodep.hiLayerResponse',
