@@ -27,34 +27,65 @@ final class SharedPreferencesScanHistoryRepository
       if (current.isEmpty) {
         throw const FormatException('Saved scan history is empty or corrupt.');
       }
-      return _decodeHistory(current);
+      final List<NfcScan> history = _decodeHistory(current);
+      await _eraseLegacyHistoryCopy();
+      return history;
     }
     final String? legacy = await _preferences.getString(_legacyHistoryKey);
     if (legacy == null || legacy.isEmpty) {
       return const <NfcScan>[];
     }
-    final List<NfcScan> migrated = _decodeHistory(legacy)
-        .map(
-          (NfcScan scan) => scan.copyWith(
-            uidHex: null,
-            uidFingerprint: HistoryPrivacy.sessionFingerprint(scan),
-            identityStability: TagIdentityStability.sessionOnly,
-            details: TagFactCatalog.privacyScrubbedDetails(scan.details),
-            ndefRecords: const <NdefRecordInfo>[],
-          ),
-        )
-        .toList(growable: false);
+    final List<NfcScan> legacyHistory = _decodeHistory(legacy);
+    final List<NfcScan> migrated = <NfcScan>[
+      for (final MapEntry<int, NfcScan> entry in legacyHistory.asMap().entries)
+        _migrateLegacyScan(entry.value, entry.key),
+    ];
     await saveHistory(migrated);
-    await _preferences.remove(_legacyHistoryKey);
+    await _eraseLegacyHistoryCopy();
     return migrated;
+  }
+
+  Future<void> _eraseLegacyHistoryCopy() async {
+    final String? legacy = await _preferences.getString(_legacyHistoryKey);
+    if (legacy == null) {
+      return;
+    }
+    // Once the current history key exists, it is authoritative. Overwrite the
+    // stale legacy copy before deletion so a failed remove cannot leave raw
+    // UID/NDEF data behind indefinitely.
+    await _preferences.setString(_legacyHistoryKey, '[]');
+    try {
+      await _preferences.remove(_legacyHistoryKey);
+    } on Object {
+      // The stale key now contains only an empty list, so keeping it is safe.
+    }
+  }
+
+  NfcScan _migrateLegacyScan(NfcScan scan, int ordinal) {
+    final String safeEventId = HistoryPrivacy.safeEventId(
+      scan,
+      ordinal: ordinal,
+    );
+    return scan.copyWith(
+      id: safeEventId,
+      uidHex: null,
+      uidFingerprint: HistoryPrivacy.sessionFingerprint(
+        scan,
+        eventId: safeEventId,
+      ),
+      identityStability: TagIdentityStability.sessionOnly,
+      details: TagFactCatalog.privacyScrubbedDetails(scan.details),
+      ndefRecords: const <NdefRecordInfo>[],
+      warnings: HistoryPrivacy.safeWarnings(scan.warnings),
+    );
   }
 
   List<NfcScan> _decodeHistory(String encoded) {
     final Object? decoded;
     try {
       decoded = jsonDecode(encoded);
-    } on Object catch (error) {
-      throw FormatException('Saved scan history is not valid JSON: $error');
+    } on Object {
+      throw const FormatException('Saved scan history is not valid JSON.');
     }
     if (decoded is! List<dynamic>) {
       throw const FormatException('Saved scan history has an invalid shape.');
@@ -184,8 +215,8 @@ final class SharedPreferencesScanHistoryRepository
     final Object? decoded;
     try {
       decoded = jsonDecode(encoded);
-    } on Object catch (error) {
-      throw FormatException('Saved settings are not valid JSON: $error');
+    } on Object {
+      throw const FormatException('Saved settings are not valid JSON.');
     }
     if (decoded is! Map<String, dynamic>) {
       throw const FormatException('Saved settings have an invalid shape.');

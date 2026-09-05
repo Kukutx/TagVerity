@@ -6,5 +6,7 @@ dart run tool/validate_project.dart
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 flutter analyze
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-flutter test
+flutter test --coverage
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+dart run tool/check_coverage.dart coverage/lcov.info 75
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

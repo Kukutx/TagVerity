@@ -445,9 +445,9 @@ final class NfcManagerReaderService implements NfcReaderService {
       details['ndef.messageLength'] = '${message.byteLength} bytes';
       details['ndef.recordCount'] = message.records.length.toString();
       return NdefDecoder.decodeMessage(message);
-    } on Object catch (error) {
+    } on Object {
       details['ndef.readStatus'] = 'error';
-      warnings.add('Could not read standard NDEF: ${ErrorText.clean(error)}');
+      warnings.add('Could not read standard NDEF.');
       return const <NdefRecordInfo>[];
     }
   }

@@ -33,6 +33,45 @@ abstract final class TagFactCatalog {
     'NFC Barcode',
     '初始选中 AID',
   };
+  static const Set<String> historySafeKeys = <String>{
+    'protocol',
+    'nfca.atqa',
+    'nfca.sak',
+    'nfca.maxTransceiveLength',
+    'nfca.timeout',
+    'nfcb.maxTransceiveLength',
+    'nfcf.systemCode',
+    'nfcf.maxTransceiveLength',
+    'nfcf.timeout',
+    'nfcv.dsfId',
+    'nfcv.responseFlags',
+    'nfcv.maxTransceiveLength',
+    'isodep.supported',
+    'isodep.extendedLengthApduSupported',
+    'isodep.maxTransceiveLength',
+    'isodep.timeout',
+    'mifare.ultralight.type',
+    'mifare.ultralight.maxTransceiveLength',
+    'mifare.ultralight.timeout',
+    'mifare.classic.type',
+    'mifare.classic.size',
+    'mifare.classic.sectorCount',
+    'mifare.classic.blockCount',
+    'barcode.type',
+    'ios.mifare.family',
+    'ios.felica.systemCode',
+    'ios.iso15693.icManufacturerCode',
+    'ios.iso7816.supported',
+    'ios.iso7816.proprietaryApplicationDataCoding',
+    'ndef.supported',
+    'ndef.maxSize',
+    'ndef.writable',
+    'ndef.readEnabled',
+    'ndef.readStatus',
+    'ndef.messageLength',
+    'ndef.recordCount',
+  };
+
   static String label(String key) => switch (key) {
     'protocol' => 'Protocol',
     'nfca.atqa' => 'ATQA',
@@ -85,13 +124,14 @@ abstract final class TagFactCatalog {
   };
   static bool isAdvanced(String key) => advancedKeys.contains(key);
   static bool isLinkable(String key) => linkableKeys.contains(key);
+  static bool isHistorySafe(String key) => historySafeKeys.contains(key);
   static Map<String, String> privacyScrubbedDetails(
     Map<String, String> details,
   ) {
     return Map<String, String>.unmodifiable(
       Map<String, String>.fromEntries(
         details.entries.where(
-          (MapEntry<String, String> entry) => !isLinkable(entry.key),
+          (MapEntry<String, String> entry) => isHistorySafe(entry.key),
         ),
       ),
     );

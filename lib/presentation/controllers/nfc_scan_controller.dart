@@ -54,6 +54,7 @@ final class NfcScanController extends ChangeNotifier
   bool _scanStopInProgress = false;
   bool _disposed = false;
   int _scanRequestSeed = 0;
+  int _availabilityRequestSeed = 0;
   int? _activeScanRequestId;
   bool _activeScanAddsToBatch = false;
   Future<void> _settingsMutationTail = Future<void>.value();
@@ -102,9 +103,11 @@ final class NfcScanController extends ChangeNotifier
       final bool requiresPrivacyRewrite =
           history.length != limitedHistory.length ||
           limitedHistory.any(_historyNeedsPrivacyScrub);
-      final List<NfcScan> privacySafeHistory = limitedHistory
-          .map(_historySafeScan)
-          .toList(growable: false);
+      final List<NfcScan> privacySafeHistory = <NfcScan>[
+        for (final MapEntry<int, NfcScan> entry
+            in limitedHistory.asMap().entries)
+          _historySafeScan(entry.value, historyOrdinal: entry.key),
+      ];
       _history = privacySafeHistory;
       if (requiresPrivacyRewrite) {
         try {
@@ -140,12 +143,14 @@ final class NfcScanController extends ChangeNotifier
     _notify();
   }
 
-  Future<void> refreshAvailability() async {
+  Future<NfcSupportStatus> refreshAvailability() async {
+    final int requestId = ++_availabilityRequestSeed;
     final NfcSupportStatus previous = _supportStatus;
+    late NfcSupportStatus status;
     try {
-      _supportStatus = await _readerService.checkAvailability();
+      status = await _readerService.checkAvailability();
     } on Object catch (error) {
-      _supportStatus = NfcSupportStatus.unknown;
+      status = NfcSupportStatus.unknown;
       _addDiagnostic(
         AppDiagnosticLevel.warning,
         'nfc.availability.check.failed',
@@ -153,6 +158,10 @@ final class NfcScanController extends ChangeNotifier
         data: <String, Object?>{'error': ErrorText.clean(error)},
       );
     }
+    if (_disposed || requestId != _availabilityRequestSeed) {
+      return status;
+    }
+    _supportStatus = status;
     if (_supportStatus != previous) {
       _addDiagnostic(
         AppDiagnosticLevel.info,
@@ -162,6 +171,7 @@ final class NfcScanController extends ChangeNotifier
       );
     }
     _notify();
+    return status;
   }
 
   Future<void> startScan({bool addToBatch = false}) async {
@@ -192,9 +202,10 @@ final class NfcScanController extends ChangeNotifier
     _activeScanAddsToBatch = addToBatch;
     _isScanning = true;
     _errorMessage = null;
+    late NfcSupportStatus supportStatus;
     _notify();
     try {
-      await refreshAvailability();
+      supportStatus = await refreshAvailability();
     } on Object catch (error) {
       if (!_isActiveScan(requestId)) return;
       _finishScanRequest(requestId);
@@ -206,10 +217,10 @@ final class NfcScanController extends ChangeNotifier
       return;
     }
     if (!_isActiveScan(requestId)) return;
-    if (_supportStatus != NfcSupportStatus.enabled) {
+    if (supportStatus != NfcSupportStatus.enabled) {
       _finishScanRequest(requestId);
       if (addToBatch) _batchAutoContinue = false;
-      _errorMessage = switch (_supportStatus) {
+      _errorMessage = switch (supportStatus) {
         NfcSupportStatus.disabled =>
           'Turn on NFC in system settings and try again.',
         NfcSupportStatus.unsupported =>
@@ -498,15 +509,19 @@ final class NfcScanController extends ChangeNotifier
     }
   }
 
-  NfcScan _historySafeScan(NfcScan scan) {
+  NfcScan _historySafeScan(NfcScan scan, {int? historyOrdinal}) {
     final bool retainComparableIdentity =
         _settings.saveTechnicalIdentifiersInHistory;
+    final String safeEventId = HistoryPrivacy.safeEventId(
+      scan,
+      ordinal: historyOrdinal,
+    );
     return scan.copyWith(
-      id: scan.id,
+      id: safeEventId,
       uidHex: _settings.saveRawUidInHistory ? scan.uidHex : null,
       uidFingerprint: retainComparableIdentity
           ? scan.uidFingerprint
-          : _historySessionFingerprint(scan),
+          : _historySessionFingerprint(scan, eventId: safeEventId),
       identityStability: retainComparableIdentity
           ? scan.identityStability
           : TagIdentityStability.sessionOnly,
@@ -516,33 +531,40 @@ final class NfcScanController extends ChangeNotifier
       ndefRecords: _settings.saveNdefInHistory
           ? scan.ndefRecords
           : const <NdefRecordInfo>[],
+      warnings: HistoryPrivacy.safeWarnings(scan.warnings),
     );
   }
 
   NfcScan _fullyPrivacyScrubbedHistoryScan(NfcScan scan) {
+    final String safeEventId = HistoryPrivacy.safeEventId(scan);
     return scan.copyWith(
-      id: scan.id,
+      id: safeEventId,
       uidHex: null,
-      uidFingerprint: _historySessionFingerprint(scan),
+      uidFingerprint: _historySessionFingerprint(scan, eventId: safeEventId),
       identityStability: TagIdentityStability.sessionOnly,
       details: TagFactCatalog.privacyScrubbedDetails(scan.details),
       ndefRecords: const <NdefRecordInfo>[],
+      warnings: HistoryPrivacy.safeWarnings(scan.warnings),
     );
   }
 
-  String _historySessionFingerprint(NfcScan scan) =>
-      HistoryPrivacy.sessionFingerprint(scan);
+  String _historySessionFingerprint(NfcScan scan, {String? eventId}) =>
+      HistoryPrivacy.sessionFingerprint(scan, eventId: eventId);
 
   bool _historyNeedsPrivacyScrub(NfcScan scan) {
     final bool identityNeedsScrub =
         !_settings.saveTechnicalIdentifiersInHistory &&
         (scan.identityStability != TagIdentityStability.sessionOnly ||
             scan.uidFingerprint != _historySessionFingerprint(scan));
-    return (!_settings.saveRawUidInHistory && scan.uidHex != null) ||
+    return HistoryPrivacy.eventIdNeedsScrub(scan.id) ||
+        (!_settings.saveRawUidInHistory && scan.uidHex != null) ||
         (!_settings.saveNdefInHistory && scan.ndefRecords.isNotEmpty) ||
         identityNeedsScrub ||
         (!_settings.saveTechnicalIdentifiersInHistory &&
-            scan.details.keys.any(TagFactCatalog.isLinkable));
+            scan.details.keys.any(
+              (String key) => !TagFactCatalog.isHistorySafe(key),
+            )) ||
+        HistoryPrivacy.warningsNeedScrub(scan.warnings);
   }
 
   Future<bool> updateSettings(

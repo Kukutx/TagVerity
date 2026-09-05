@@ -31,14 +31,15 @@ TagVerity is developed **core-first**. Reliability, clear NFC semantics, privacy
 - [x] CSV export with identity reliability and repeated-ID status.
 ### History, privacy, and export
 - [x] Local scan history and search with lazy result rendering.
-- [x] Raw UID, NDEF content, and linkable technical identifiers disabled in history by default.
+- [x] Raw UID, NDEF content, comparable fingerprints, linkable technical identifiers, raw platform-error warnings, and unknown/unreviewed technical fields disabled in history by default.
 - [x] Transactional history mutations: UI only reports success after persistence succeeds.
 - [x] Settings mutations are serialized against the latest committed state so rapid toggles cannot re-enable stale values.
 - [x] Disabling sensitive retention is privacy-first: future retention stops first, in-memory history is hidden immediately, disk rewrites are serialized, and cleanup failure stays visible.
 - [x] History persistence is serialized across scan saves, delete, clear, scrub, and privacy rewrites, including recovery after a queued write failure.
 - [x] Corrupt local history/settings surface an error instead of silently pretending data is empty.
 - [x] JSON export for scans/history and CSV export for batches.
-- [x] Native Android/iOS sharing with failure reporting and 24-hour stale temporary-export cleanup.
+- [x] Native Android/iOS sharing with failure reporting, isolated export directories, and 24-hour stale temporary-export cleanup.
+- [x] Android app-data backup/device-transfer exclusions for local history/settings with validator coverage.
 - [x] Privacy-safe diagnostics.
 ### UX and quality
 - [x] Global error banner visible from Inspect, Batch, History, and Settings.
@@ -46,8 +47,8 @@ TagVerity is developed **core-first**. Reliability, clear NFC semantics, privacy
 - [x] Technical detail visibility is local to the detail page instead of a global setting.
 - [x] Only the active bottom-navigation page is built/listening.
 - [x] Unit/controller coverage for decoding, classification, assessment, privacy, and batch identity rules.
-- [x] Widget tests for navigation, global errors, sensitive-setting confirmation, a narrow phone surface, 200% text scaling, and dark mode.
-- [x] CI version/schema consistency validation.
+- [x] Widget tests for navigation, global errors, sensitive-setting confirmation, dark mode, and combined 320px + 200% text-scale stress coverage for empty and populated core results.
+- [x] CI version/schema consistency validation and a 75% minimum line-coverage gate.
 - [x] Android debug compile and unsigned iOS debug compile in GitHub Actions.
 - [ ] Complete the physical-device matrix in `docs/DEVICE_TEST_CHECKLIST.md` and a signed iPhone Archive.
 The final unchecked item requires real NFC hardware and signing and cannot be replaced by CI.

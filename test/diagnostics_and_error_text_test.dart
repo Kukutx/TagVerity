@@ -38,6 +38,43 @@ void main() {
     expect(encoded, contains('42'));
   });
 
+  test('diagnostics bound strings collections and nesting depth', () {
+    final DiagnosticsBuffer buffer = DiagnosticsBuffer();
+    final Map<String, Object?> manyValues = <String, Object?>{
+      for (int index = 0; index < 40; index++) 'key-$index': 'value-$index',
+    };
+
+    buffer.add(
+      AppDiagnosticLevel.warning,
+      'x' * 800,
+      'm' * 800,
+      data: <String, Object?>{
+        'many': manyValues,
+        'list': List<int>.generate(50, (int index) => index),
+        'deep': <String, Object?>{
+          'a': <String, Object?>{
+            'b': <String, Object?>{
+              'c': <String, Object?>{
+                'd': <String, Object?>{'secret': 'should not be retained'},
+              },
+            },
+          },
+        },
+      },
+    );
+
+    final DiagnosticEvent event = buffer.events.single;
+    expect(event.code.runes.length, DiagnosticsBuffer.maximumStringCharacters);
+    expect(
+      event.message.runes.length,
+      DiagnosticsBuffer.maximumStringCharacters,
+    );
+    expect((event.data['many'] as Map<String, Object?>).length, 20);
+    expect((event.data['list'] as List<Object?>).length, 20);
+    expect(jsonEncode(event.data), contains('[truncated-depth]'));
+    expect(jsonEncode(event.data), isNot(contains('should not be retained')));
+  });
+
   test('diagnostics cap retains only the newest events', () {
     final DiagnosticsBuffer buffer = DiagnosticsBuffer();
     for (int index = 0; index < 120; index++) {

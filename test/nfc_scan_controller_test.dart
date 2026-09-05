@@ -28,10 +28,70 @@ void main() {
     expect(controller.currentScan?.ndefRecords, hasLength(1));
     expect(controller.history.single.ndefRecords, isEmpty);
     expect(controller.history.single.details['barcode.value'], isNull);
+    expect(
+      controller.history.single.details['future.unknownSensitiveField'],
+      isNull,
+    );
     expect(controller.history.single.details['nfca.sak'], '0x00');
     expect(repository.history.single.uidHex, isNull);
     controller.dispose();
   });
+  test(
+    'startup rewrites history warnings without raw platform errors',
+    () async {
+      final _MemoryRepository repository = _MemoryRepository()
+        ..history = <NfcScan>[
+          _scan(
+            'saved-scan',
+            'saved-fingerprint',
+            warnings: const <String>[
+              'Could not read standard NDEF: private@example.com',
+            ],
+          ),
+        ];
+      final NfcScanController controller = NfcScanController(
+        readerService: _FakeReaderService(const <NfcScan>[]),
+        repository: repository,
+        exportService: _FakeExportService(),
+      );
+
+      await controller.initialize();
+
+      expect(controller.history.single.warnings, const <String>[
+        'Could not read standard NDEF.',
+      ]);
+      expect(repository.history.single.warnings, const <String>[
+        'Could not read standard NDEF.',
+      ]);
+      controller.dispose();
+    },
+  );
+
+  test(
+    'startup rewrites legacy linkable event IDs from current history',
+    () async {
+      final _MemoryRepository repository = _MemoryRepository()
+        ..history = <NfcScan>[
+          _scan(
+            '1780000000000000-abcdef123456',
+            '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+          ),
+        ];
+      final NfcScanController controller = NfcScanController(
+        readerService: _FakeReaderService(const <NfcScan>[]),
+        repository: repository,
+        exportService: _FakeExportService(),
+      );
+
+      await controller.initialize();
+
+      expect(controller.history.single.id, contains('-migrated-1'));
+      expect(controller.history.single.id, isNot(contains('abcdef123456')));
+      expect(repository.history.single.id, controller.history.single.id);
+      controller.dispose();
+    },
+  );
+
   test('batch summary detects repeated comparable identifiers', () async {
     final NfcScanController controller = NfcScanController(
       readerService: _FakeReaderService(<NfcScan>[
@@ -111,6 +171,7 @@ NfcScan _scan(
   String id,
   String fingerprint, {
   TagIdentityStability identityStability = TagIdentityStability.stable,
+  List<String> warnings = const <String>[],
 }) {
   return NfcScan(
     id: id,
@@ -123,6 +184,7 @@ NfcScan _scan(
     details: const <String, String>{
       'nfca.sak': '0x00',
       'barcode.value': 'AA:BB:CC:DD',
+      'future.unknownSensitiveField': 'private-value',
       'ndef.supported': 'yes',
       'ndef.readStatus': 'ok',
       'ndef.recordCount': '1',
@@ -139,7 +201,7 @@ NfcScan _scan(
         payloadPreviewHex: '48:65:6C:6C:6F',
       ),
     ],
-    warnings: const <String>[],
+    warnings: warnings,
   );
 }
 

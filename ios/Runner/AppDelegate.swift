@@ -43,9 +43,28 @@ import UIKit
     result: @escaping FlutterResult
   ) {
     let temporaryDirectory = FileManager.default.temporaryDirectory
+    let exportDirectory = temporaryDirectory.appendingPathComponent(
+      "tagverity-exports",
+      isDirectory: true
+    )
+    do {
+      try FileManager.default.createDirectory(
+        at: exportDirectory,
+        withIntermediateDirectories: true
+      )
+    } catch {
+      result(
+        FlutterError(
+          code: "share_failed",
+          message: error.localizedDescription,
+          details: nil
+        )
+      )
+      return
+    }
     let staleBefore = Date().addingTimeInterval(-24 * 60 * 60)
     if let urls = try? FileManager.default.contentsOfDirectory(
-      at: temporaryDirectory,
+      at: exportDirectory,
       includingPropertiesForKeys: [.contentModificationDateKey]
     ) {
       for url in urls where url.lastPathComponent.hasPrefix("tagverity-") {
@@ -60,7 +79,7 @@ import UIKit
       }
     }
     let safeFilename = URL(fileURLWithPath: filename).lastPathComponent
-    let fileURL = temporaryDirectory.appendingPathComponent(safeFilename)
+    let fileURL = exportDirectory.appendingPathComponent(safeFilename)
     do {
       try content.write(to: fileURL, atomically: true, encoding: .utf8)
     } catch {
