@@ -525,9 +525,10 @@ final class NfcScanController extends ChangeNotifier
       identityStability: retainComparableIdentity
           ? scan.identityStability
           : TagIdentityStability.sessionOnly,
-      details: retainComparableIdentity
-          ? scan.details
-          : TagFactCatalog.privacyScrubbedDetails(scan.details),
+      details: TagFactCatalog.historyRetainedDetails(
+        scan.details,
+        includeLinkable: retainComparableIdentity,
+      ),
       ndefRecords: _settings.saveNdefInHistory
           ? scan.ndefRecords
           : const <NdefRecordInfo>[],
@@ -560,10 +561,12 @@ final class NfcScanController extends ChangeNotifier
         (!_settings.saveRawUidInHistory && scan.uidHex != null) ||
         (!_settings.saveNdefInHistory && scan.ndefRecords.isNotEmpty) ||
         identityNeedsScrub ||
-        (!_settings.saveTechnicalIdentifiersInHistory &&
-            scan.details.keys.any(
-              (String key) => !TagFactCatalog.isHistorySafe(key),
-            )) ||
+        scan.details.keys.any(
+          (String key) => !TagFactCatalog.isHistoryRetainable(
+            key,
+            includeLinkable: _settings.saveTechnicalIdentifiersInHistory,
+          ),
+        ) ||
         HistoryPrivacy.warningsNeedScrub(scan.warnings);
   }
 

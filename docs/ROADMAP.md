@@ -31,7 +31,7 @@ TagVerity is developed **core-first**. Reliability, clear NFC semantics, privacy
 - [x] CSV export with identity reliability and repeated-ID status.
 ### History, privacy, and export
 - [x] Local scan history and search with lazy result rendering.
-- [x] Raw UID, NDEF content, comparable fingerprints, linkable technical identifiers, raw platform-error warnings, and unknown/unreviewed technical fields disabled in history by default.
+- [x] Raw UID, NDEF content, comparable fingerprints, raw platform-error warnings, and unknown/unreviewed technical fields excluded from default history; technical opt-in adds only explicitly cataloged linkable fields and never acts as an unknown-field wildcard.
 - [x] Transactional history mutations: UI only reports success after persistence succeeds.
 - [x] Settings mutations are serialized against the latest committed state so rapid toggles cannot re-enable stale values.
 - [x] Disabling sensitive retention is privacy-first: future retention stops first, in-memory history is hidden immediately, disk rewrites are serialized, and cleanup failure stays visible.
