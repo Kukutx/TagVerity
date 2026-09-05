@@ -10,27 +10,21 @@ import 'package:tagverity/presentation/controllers/nfc_scan_controller.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-
   test('disabled NFC blocks scan with actionable error', () async {
     final _Reader reader = _Reader(availability: NfcSupportStatus.disabled);
     final NfcScanController controller = _controller(reader: reader);
     await controller.initialize();
-
     await controller.startScan();
-
     expect(reader.startCalls, 0);
     expect(controller.isScanning, isFalse);
     expect(controller.errorMessage, contains('Turn on NFC'));
     controller.dispose();
   });
-
   test('reader terminal errors return controller to usable state', () async {
     final _Reader reader = _Reader(scanError: 'Scan timed out');
     final NfcScanController controller = _controller(reader: reader);
     await controller.initialize();
-
     await controller.startScan();
-
     expect(controller.isScanning, isFalse);
     expect(controller.errorMessage, 'Scan timed out');
     expect(
@@ -41,19 +35,15 @@ void main() {
     );
     controller.dispose();
   });
-
-  test('share failures surface as UI error and diagnostics', () async {
-    final _Reader reader = _Reader(scan: _scan());
+  test('share failures surface as global controller error', () async {
     final NfcScanController controller = NfcScanController(
-      readerService: reader,
+      readerService: _Reader(scan: _scan()),
       repository: _MemoryRepository(),
       exportService: _ThrowingExportService(),
     );
     await controller.initialize();
     await controller.startScan();
-
     await controller.shareCurrentScanJson();
-
     expect(controller.errorMessage, contains('Could not share report'));
     expect(
       controller.diagnosticEvents.any(
@@ -63,8 +53,7 @@ void main() {
     );
     controller.dispose();
   });
-
-  test('failed raw UID scrub keeps original history visible', () async {
+  test('failed sensitive scrub keeps original history visible', () async {
     final NfcScan original = _scan();
     final _MemoryRepository repository = _MemoryRepository(
       initialHistory: <NfcScan>[original],
@@ -76,26 +65,15 @@ void main() {
       exportService: _NoopExportService(),
     );
     await controller.initialize();
-
-    await controller.scrubRawUidsFromHistory();
-
+    final bool removed = await controller.scrubSensitiveHistory();
+    expect(removed, isFalse);
     expect(controller.history.single.uidHex, original.uidHex);
     expect(repository.history.single.uidHex, original.uidHex);
-    expect(
-      controller.errorMessage,
-      contains('Remove raw identifiers from history failed'),
-    );
-    expect(
-      controller.diagnosticEvents.any(
-        (event) => event.code == 'storage.history.mutation.failed',
-      ),
-      isTrue,
-    );
+    expect(controller.errorMessage, contains('Remove sensitive data'));
     controller.dispose();
   });
-
   test(
-    'successful raw UID scrub updates memory and persistence together',
+    'successful sensitive scrub updates memory and persistence together',
     () async {
       final _MemoryRepository repository = _MemoryRepository(
         initialHistory: <NfcScan>[_scan()],
@@ -106,19 +84,17 @@ void main() {
         exportService: _NoopExportService(),
       );
       await controller.initialize();
-
-      await controller.scrubRawUidsFromHistory();
-
+      final bool removed = await controller.scrubSensitiveHistory();
+      expect(removed, isTrue);
       expect(controller.history.single.uidHex, isNull);
+      expect(controller.history.single.details['barcode.value'], isNull);
       expect(repository.history.single.uidHex, isNull);
       controller.dispose();
     },
   );
-
   test('failed history clear keeps original history visible', () async {
-    final NfcScan original = _scan();
     final _MemoryRepository repository = _MemoryRepository(
-      initialHistory: <NfcScan>[original],
+      initialHistory: <NfcScan>[_scan()],
       failClearHistory: true,
     );
     final NfcScanController controller = NfcScanController(
@@ -127,46 +103,120 @@ void main() {
       exportService: _NoopExportService(),
     );
     await controller.initialize();
-
-    await controller.clearHistory();
-
+    final bool cleared = await controller.clearHistory();
+    expect(cleared, isFalse);
     expect(controller.history, hasLength(1));
     expect(repository.history, hasLength(1));
     expect(controller.errorMessage, contains('Could not clear history'));
+    controller.dispose();
+  });
+  test(
+    'history persistence failure never creates fake saved history',
+    () async {
+      final _MemoryRepository repository = _MemoryRepository(
+        failSaveHistory: true,
+      );
+      final NfcScanController controller = NfcScanController(
+        readerService: _Reader(scan: _scan()),
+        repository: repository,
+        exportService: _NoopExportService(),
+      );
+      await controller.initialize();
+      await controller.startScan();
+      expect(controller.currentScan, isNotNull);
+      expect(controller.history, isEmpty);
+      expect(repository.history, isEmpty);
+      expect(controller.errorMessage, contains('Could not save scan history'));
+      controller.dispose();
+    },
+  );
+  test('failed settings persistence keeps previous settings', () async {
+    final _MemoryRepository repository = _MemoryRepository(
+      failSaveSettings: true,
+    );
+    final NfcScanController controller = NfcScanController(
+      readerService: _Reader(),
+      repository: repository,
+      exportService: _NoopExportService(),
+    );
+    await controller.initialize();
+    final bool saved = await controller.updateSettings(
+      controller.settings.copyWith(readNdef: false),
+    );
+    expect(saved, isFalse);
+    expect(controller.settings.readNdef, isTrue);
+    expect(repository.settings.readNdef, isTrue);
+    expect(controller.errorMessage, contains('Could not save settings'));
+    controller.dispose();
+  });
+  test('disabling sensitive retention scrubs matching saved history', () async {
+    final _MemoryRepository repository = _MemoryRepository(
+      initialHistory: <NfcScan>[_scan()],
+      initialSettings: const ScanSettings(saveRawUidInHistory: true),
+    );
+    final NfcScanController controller = NfcScanController(
+      readerService: _Reader(),
+      repository: repository,
+      exportService: _NoopExportService(),
+    );
+    await controller.initialize();
+    final bool saved = await controller.updateSettings(
+      controller.settings.copyWith(saveRawUidInHistory: false),
+    );
+    expect(saved, isTrue);
+    expect(controller.settings.saveRawUidInHistory, isFalse);
+    expect(controller.history.single.uidHex, isNull);
+    expect(repository.history.single.uidHex, isNull);
+    controller.dispose();
+  });
+  test('privacy setting stays disabled when historical scrub fails', () async {
+    final NfcScan original = _scan();
+    final _MemoryRepository repository = _MemoryRepository(
+      initialHistory: <NfcScan>[original],
+      initialSettings: const ScanSettings(saveRawUidInHistory: true),
+      failSaveHistory: true,
+    );
+    final NfcScanController controller = NfcScanController(
+      readerService: _Reader(),
+      repository: repository,
+      exportService: _NoopExportService(),
+    );
+    await controller.initialize();
+    final bool saved = await controller.updateSettings(
+      controller.settings.copyWith(saveRawUidInHistory: false),
+    );
+    expect(saved, isFalse);
+    expect(controller.settings.saveRawUidInHistory, isFalse);
+    expect(repository.settings.saveRawUidInHistory, isFalse);
+    expect(controller.history.single.uidHex, original.uidHex);
+    expect(repository.history.single.uidHex, original.uidHex);
+    expect(
+      controller.errorMessage,
+      contains('saved history could not be scrubbed'),
+    );
     expect(
       controller.diagnosticEvents.any(
-        (event) => event.code == 'storage.history.clear.failed',
+        (event) => event.code == 'storage.history.scrub.after_setting.failed',
       ),
       isTrue,
     );
     controller.dispose();
   });
-
   test(
-    'history persistence failure keeps scan visible and reports error',
+    'history load failure is visible without preventing initialization',
     () async {
-      final _Reader reader = _Reader(scan: _scan());
       final _MemoryRepository repository = _MemoryRepository(
-        failSaveHistory: true,
+        failLoadHistory: true,
       );
       final NfcScanController controller = NfcScanController(
-        readerService: reader,
+        readerService: _Reader(),
         repository: repository,
         exportService: _NoopExportService(),
       );
       await controller.initialize();
-
-      await controller.startScan();
-
-      expect(controller.currentScan, isNotNull);
-      expect(controller.history, hasLength(1));
-      expect(controller.errorMessage, contains('Could not save scan history'));
-      expect(
-        controller.diagnosticEvents.any(
-          (event) => event.code == 'storage.history.save.failed',
-        ),
-        isTrue,
-      );
+      expect(controller.initialized, isTrue);
+      expect(controller.history, isEmpty);
+      expect(controller.errorMessage, contains('Could not load saved history'));
       controller.dispose();
     },
   );
@@ -190,6 +240,7 @@ NfcScan _scan() {
     identityStability: TagIdentityStability.stable,
     technologies: const <String>['NfcA'],
     details: const <String, String>{
+      'barcode.value': 'AA:BB:CC:DD',
       'ndef.supported': 'yes',
       'ndef.readStatus': 'ok',
       'ndef.recordCount': '0',
@@ -205,15 +256,12 @@ final class _Reader implements NfcReaderService {
     this.scan,
     this.scanError,
   });
-
   final NfcSupportStatus availability;
   final NfcScan? scan;
   final String? scanError;
   int startCalls = 0;
-
   @override
   Future<NfcSupportStatus> checkAvailability() async => availability;
-
   @override
   Future<void> startScan({
     required ScanSettings settings,
@@ -240,37 +288,43 @@ final class _MemoryRepository implements ScanHistoryRepository {
   _MemoryRepository({
     this.failSaveHistory = false,
     this.failClearHistory = false,
+    this.failSaveSettings = false,
+    this.failLoadHistory = false,
     List<NfcScan> initialHistory = const <NfcScan>[],
-  }) : history = List<NfcScan>.of(initialHistory);
-
+    ScanSettings initialSettings = const ScanSettings(),
+  }) : history = List<NfcScan>.of(initialHistory),
+       settings = initialSettings;
   final bool failSaveHistory;
   final bool failClearHistory;
+  final bool failSaveSettings;
+  final bool failLoadHistory;
   List<NfcScan> history;
-
+  ScanSettings settings;
   @override
   Future<void> clearHistory() async {
-    if (failClearHistory) {
-      throw StateError('disk unavailable');
-    }
+    if (failClearHistory) throw StateError('disk unavailable');
     history = <NfcScan>[];
   }
 
   @override
-  Future<List<NfcScan>> loadHistory() async => List<NfcScan>.of(history);
+  Future<List<NfcScan>> loadHistory() async {
+    if (failLoadHistory) throw const FormatException('corrupt history');
+    return List<NfcScan>.of(history);
+  }
 
   @override
-  Future<ScanSettings> loadSettings() async => const ScanSettings();
-
+  Future<ScanSettings> loadSettings() async => settings;
   @override
   Future<void> saveHistory(List<NfcScan> scans) async {
-    if (failSaveHistory) {
-      throw StateError('disk unavailable');
-    }
+    if (failSaveHistory) throw StateError('disk unavailable');
     history = List<NfcScan>.of(scans);
   }
 
   @override
-  Future<void> saveSettings(ScanSettings settings) async {}
+  Future<void> saveSettings(ScanSettings value) async {
+    if (failSaveSettings) throw StateError('disk unavailable');
+    settings = value;
+  }
 }
 
 final class _NoopExportService implements ExportService {

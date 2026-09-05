@@ -3,14 +3,17 @@ abstract final class TagFactCatalog {
     'nfca.maxTransceiveLength',
     'nfca.timeout',
     'nfcb.maxTransceiveLength',
+    'nfcf.maxTransceiveLength',
+    'nfcf.timeout',
+    'nfcv.maxTransceiveLength',
     'isodep.extendedLengthApduSupported',
     'isodep.maxTransceiveLength',
     'isodep.timeout',
     'isodep.hiLayerResponse',
     'mifare.ultralight.maxTransceiveLength',
     'mifare.ultralight.timeout',
+    'ndef.readStatus',
   };
-
   static const Set<String> linkableKeys = <String>{
     'nfcb.applicationData',
     'nfcb.protocolInfo',
@@ -29,7 +32,6 @@ abstract final class TagFactCatalog {
     'NFC Barcode',
     '初始选中 AID',
   };
-
   static String label(String key) => switch (key) {
     'protocol' => 'Protocol',
     'nfca.atqa' => 'ATQA',
@@ -39,6 +41,13 @@ abstract final class TagFactCatalog {
     'nfcb.applicationData' => 'NFC-B application data',
     'nfcb.protocolInfo' => 'NFC-B protocol info',
     'nfcb.maxTransceiveLength' => 'NFC-B max transceive',
+    'nfcf.manufacturer' => 'NFC-F manufacturer parameter',
+    'nfcf.systemCode' => 'NFC-F system code',
+    'nfcf.maxTransceiveLength' => 'NFC-F max transceive',
+    'nfcf.timeout' => 'NFC-F timeout',
+    'nfcv.dsfId' => 'NFC-V DSFID',
+    'nfcv.responseFlags' => 'NFC-V response flags',
+    'nfcv.maxTransceiveLength' => 'NFC-V max transceive',
     'isodep.supported' => 'ISO-DEP',
     'isodep.extendedLengthApduSupported' => 'Extended-length APDU capability',
     'isodep.maxTransceiveLength' => 'ISO-DEP max transceive',
@@ -56,6 +65,8 @@ abstract final class TagFactCatalog {
     'barcode.value' => 'NFC Barcode',
     'ios.mifare.family' => 'MIFARE family',
     'ios.mifare.historicalBytes' => 'MIFARE historical bytes',
+    'ios.felica.systemCode' => 'NFC-F system code',
+    'ios.iso15693.icManufacturerCode' => 'ISO 15693 manufacturer code',
     'ios.iso7816.supported' => 'ISO 7816',
     'ios.iso7816.initialSelectedAid' => 'Initial selected AID',
     'ios.iso7816.proprietaryApplicationDataCoding' =>
@@ -66,15 +77,13 @@ abstract final class TagFactCatalog {
     'ndef.maxSize' => 'NDEF capacity',
     'ndef.writable' => 'NDEF writable',
     'ndef.readEnabled' => 'NDEF content reading',
+    'ndef.readStatus' => 'NDEF read status',
     'ndef.messageLength' => 'NDEF message length',
     'ndef.recordCount' => 'NDEF records',
     _ => key,
   };
-
   static bool isAdvanced(String key) => advancedKeys.contains(key);
-
   static bool isLinkable(String key) => linkableKeys.contains(key);
-
   static Map<String, String> privacyScrubbedDetails(
     Map<String, String> details,
   ) {

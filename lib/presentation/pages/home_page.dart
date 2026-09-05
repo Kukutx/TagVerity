@@ -17,9 +17,7 @@ import 'scan_detail_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({required this.controller, super.key});
-
   final NfcScanController controller;
-
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -86,25 +84,17 @@ class HomePage extends StatelessWidget {
                       controller.isScanning ? 'Stop scanning' : 'Scan NFC tag',
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  TextButton.icon(
-                    onPressed: () =>
-                        unawaited(controller.refreshAvailability()),
-                    icon: const Icon(Icons.refresh_rounded),
-                    label: const Text('Check NFC availability'),
-                  ),
                 ],
               ),
             ),
-            if (controller.errorMessage case final String message) ...<Widget>[
-              const SizedBox(height: 14),
-              _ErrorCard(message: message, onClose: controller.clearError),
-            ],
             const SizedBox(height: 14),
             if (scan == null)
               const _GettingStartedCard()
             else ...<Widget>[
-              TagAssessmentCard(assessment: controller.currentAssessment!),
+              TagAssessmentCard(
+                assessment: controller.currentAssessment!,
+                compact: true,
+              ),
               const SizedBox(height: 14),
               _CurrentScanCard(controller: controller, scan: scan),
             ],
@@ -125,10 +115,8 @@ class HomePage extends StatelessWidget {
 
 class _CurrentScanCard extends StatelessWidget {
   const _CurrentScanCard({required this.controller, required this.scan});
-
   final NfcScanController controller;
   final NfcScan scan;
-
   @override
   Widget build(BuildContext context) {
     final classification = TagClassifier.classify(scan);
@@ -188,11 +176,8 @@ class _CurrentScanCard extends StatelessWidget {
               unawaited(
                 Navigator.of(context).push<void>(
                   MaterialPageRoute<void>(
-                    builder: (BuildContext context) => ScanDetailPage(
-                      scan: scan,
-                      showAdvancedFields:
-                          controller.settings.showAdvancedFields,
-                    ),
+                    builder: (BuildContext context) =>
+                        ScanDetailPage(scan: scan),
                   ),
                 ),
               );
@@ -208,7 +193,6 @@ class _CurrentScanCard extends StatelessWidget {
 
 class _GettingStartedCard extends StatelessWidget {
   const _GettingStartedCard();
-
   @override
   Widget build(BuildContext context) {
     return const SectionCard(
@@ -222,15 +206,15 @@ class _GettingStartedCard extends StatelessWidget {
           ),
           _FeatureLine(
             icon: Icons.layers_outlined,
-            text: 'NFC technology and public tag metadata',
+            text: 'NFC-A/B, NFC-V, NFC-F, and public tag metadata',
           ),
           _FeatureLine(
             icon: Icons.description_outlined,
-            text: 'Standard NDEF content and capacity',
+            text: 'Standard NDEF content and capacity when available',
           ),
           _FeatureLine(
             icon: Icons.warning_amber_rounded,
-            text: 'Read warnings that need review',
+            text: 'Core read warnings that need review',
           ),
         ],
       ),
@@ -240,10 +224,8 @@ class _GettingStartedCard extends StatelessWidget {
 
 class _FeatureLine extends StatelessWidget {
   const _FeatureLine({required this.icon, required this.text});
-
   final IconData icon;
   final String text;
-
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -254,38 +236,6 @@ class _FeatureLine extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(child: Text(text)),
         ],
-      ),
-    );
-  }
-}
-
-class _ErrorCard extends StatelessWidget {
-  const _ErrorCard({required this.message, required this.onClose});
-
-  final String message;
-  final VoidCallback onClose;
-
-  @override
-  Widget build(BuildContext context) {
-    final ColorScheme colors = Theme.of(context).colorScheme;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: colors.errorContainer,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(
-          children: <Widget>[
-            Icon(Icons.error_outline_rounded, color: colors.onErrorContainer),
-            const SizedBox(width: 10),
-            Expanded(child: Text(message)),
-            IconButton(
-              onPressed: onClose,
-              icon: const Icon(Icons.close_rounded),
-            ),
-          ],
-        ),
       ),
     );
   }

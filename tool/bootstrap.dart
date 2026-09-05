@@ -1,17 +1,20 @@
 import 'dart:convert';
 import 'dart:io';
 
-const String _requiredFlutterVersion = '3.47.1';
-const String _requiredDartVersion = '3.13.1';
-
+const String _baselineFlutterVersion = '3.47.1';
+const String _baselineDartVersion = '3.13.1';
 Future<void> main(List<String> arguments) async {
   final bool skipChecks = arguments.contains('--skip-checks');
+  final bool strictSdk = arguments.contains('--strict-sdk');
+  final bool requireSingleSdk = arguments.contains('--single-sdk');
   final Directory root = _locateProjectRoot();
-
   stdout.writeln('Project: ${root.path}');
-  await _requireSingleLocalSdk(root);
+  await _requireCompatibleSdk(
+    root,
+    strict: strictSdk,
+    requireSingleSdk: requireSingleSdk,
+  );
   _requireCommittedPlatforms(root);
-
   await _run(
     _flutterExecutable,
     const <String>['pub', 'get'],
@@ -24,7 +27,12 @@ Future<void> main(List<String> arguments) async {
     root,
     description: 'dart format',
   );
-
+  await _run(
+    _dartExecutable,
+    const <String>['run', 'tool/validate_project.dart'],
+    root,
+    description: 'project metadata validation',
+  );
   if (!skipChecks) {
     await _run(
       _flutterExecutable,
@@ -39,8 +47,7 @@ Future<void> main(List<String> arguments) async {
       description: 'flutter test',
     );
   }
-
-  stdout.writeln('\nTagVerity setup verified with the existing local SDK.');
+  stdout.writeln('\nTagVerity setup verified.');
 }
 
 Directory _locateProjectRoot() {
@@ -48,12 +55,10 @@ Directory _locateProjectRoot() {
   if (File(_join(candidate.path, 'pubspec.yaml')).existsSync()) {
     return candidate;
   }
-
   candidate = File.fromUri(Platform.script).parent.parent.absolute;
   if (File(_join(candidate.path, 'pubspec.yaml')).existsSync()) {
     return candidate;
   }
-
   throw StateError(
     'Could not locate the project root containing pubspec.yaml.',
   );
@@ -61,8 +66,11 @@ Directory _locateProjectRoot() {
 
 String get _flutterExecutable => Platform.isWindows ? 'flutter.bat' : 'flutter';
 String get _dartExecutable => Platform.isWindows ? 'dart.bat' : 'dart';
-
-Future<void> _requireSingleLocalSdk(Directory root) async {
+Future<void> _requireCompatibleSdk(
+  Directory root, {
+  required bool strict,
+  required bool requireSingleSdk,
+}) async {
   final ProcessResult versionResult = await _runProcess(
     _flutterExecutable,
     const <String>['--version'],
@@ -73,31 +81,45 @@ Future<void> _requireSingleLocalSdk(Directory root) async {
   if (versionResult.exitCode != 0) {
     throw StateError('The configured Flutter SDK could not start.');
   }
-  if (!output.contains('Flutter $_requiredFlutterVersion') ||
-      !output.contains('Dart $_requiredDartVersion')) {
+  final String flutterVersion =
+      RegExp(r'Flutter\s+(\d+\.\d+\.\d+)').firstMatch(output)?.group(1) ?? '';
+  final String dartVersion =
+      RegExp(r'Dart\s+(\d+\.\d+\.\d+)').firstMatch(output)?.group(1) ?? '';
+  if (flutterVersion.isEmpty || dartVersion.isEmpty) {
+    throw StateError('Could not parse Flutter/Dart versions.');
+  }
+  if (strict) {
+    if (flutterVersion != _baselineFlutterVersion ||
+        dartVersion != _baselineDartVersion) {
+      throw StateError(
+        'Strict mode requires Flutter $_baselineFlutterVersion / '
+        'Dart $_baselineDartVersion. Found Flutter $flutterVersion / Dart $dartVersion.',
+      );
+    }
+  } else if (!_atLeast(flutterVersion, _baselineFlutterVersion) ||
+      !_atLeast(dartVersion, _baselineDartVersion)) {
     throw StateError(
-      'TagVerity requires the existing Flutter $_requiredFlutterVersion / '
-      'Dart $_requiredDartVersion SDK.',
+      'TagVerity requires Flutter >= $_baselineFlutterVersion and '
+      'Dart >= $_baselineDartVersion. Found Flutter $flutterVersion / Dart $dartVersion.',
     );
   }
-
-  if (!Platform.isWindows) {
+  if (!requireSingleSdk || !Platform.isWindows) {
     return;
   }
-
   final Set<String> flutterBins = await _windowsExecutableBins('flutter');
   final Set<String> dartBins = await _windowsExecutableBins('dart');
   if (flutterBins.length != 1) {
     throw StateError(
-      'Multiple Flutter SDK locations are active on PATH: ${flutterBins.join(', ')}',
+      'Strict local mode requires one Flutter SDK on PATH. Found: '
+      '${flutterBins.join(', ')}',
     );
   }
   if (dartBins.length != 1) {
     throw StateError(
-      'Multiple Dart SDK locations are active on PATH: ${dartBins.join(', ')}',
+      'Strict local mode requires one Dart SDK source on PATH. Found: '
+      '${dartBins.join(', ')}',
     );
   }
-
   final String flutterBin = flutterBins.single.toLowerCase();
   final String dartBin = dartBins.single.toLowerCase();
   final String expectedDartBin = _join(
@@ -106,9 +128,24 @@ Future<void> _requireSingleLocalSdk(Directory root) async {
   ).toLowerCase();
   if (dartBin != flutterBin && dartBin != expectedDartBin) {
     throw StateError(
-      'Dart is not coming from the active Flutter SDK. Flutter: $flutterBin; Dart: $dartBin',
+      'Dart is not coming from the active Flutter SDK. '
+      'Flutter: $flutterBin; Dart: $dartBin',
     );
   }
+}
+
+bool _atLeast(String actual, String baseline) {
+  final List<int> a = actual.split('.').map(int.parse).toList(growable: false);
+  final List<int> b = baseline
+      .split('.')
+      .map(int.parse)
+      .toList(growable: false);
+  for (int index = 0; index < 3; index++) {
+    if (a[index] != b[index]) {
+      return a[index] > b[index];
+    }
+  }
+  return true;
 }
 
 Future<Set<String>> _windowsExecutableBins(String executable) async {

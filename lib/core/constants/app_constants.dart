@@ -6,11 +6,8 @@ abstract final class AppConstants {
   static const String dartBaseline = '3.13.1';
   static const int defaultHistoryLimit = 100;
   static const int defaultScanTimeoutSeconds = 30;
-  static const int minimumScanTimeoutSeconds = 5;
-  static const int maximumScanTimeoutSeconds = 120;
-  static const int minimumHistoryLimit = 10;
-  static const int maximumHistoryLimit = 500;
   static const int exportSchemaVersion = 3;
+  static const int diagnosticsSchemaVersion = 3;
   static const int maximumDiagnosticEvents = 100;
   static const int maximumBatchScans = 1000;
 }

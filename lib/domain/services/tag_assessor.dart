@@ -5,7 +5,6 @@ import '../models/tag_identity_stability.dart';
 abstract final class TagAssessor {
   static TagAssessment assess(NfcScan scan) {
     final List<TagCheckItem> items = <TagCheckItem>[];
-
     if (scan.technologies.isEmpty) {
       items.add(
         const TagCheckItem(
@@ -23,13 +22,14 @@ abstract final class TagAssessor {
         ),
       );
     }
-
     switch (scan.identityStability) {
       case TagIdentityStability.stable:
         items.add(
           const TagCheckItem(
             title: 'Tag identity',
-            detail: 'A platform-exposed identifier is available for comparison. Some tags can randomize identifiers between scans.',
+            detail:
+                'A platform-exposed identifier is available for comparison. '
+                'Some tags can randomize identifiers between scans.',
             state: TagCheckState.passed,
           ),
         );
@@ -37,7 +37,9 @@ abstract final class TagAssessor {
         items.add(
           const TagCheckItem(
             title: 'Tag identity',
-            detail: 'This platform did not expose a stable identifier. Duplicate checks are unavailable for this scan.',
+            detail:
+                'This platform did not expose a comparable identifier. '
+                'Repeated-ID checks are unavailable for this scan.',
             state: TagCheckState.info,
           ),
         );
@@ -45,50 +47,66 @@ abstract final class TagAssessor {
         items.add(
           const TagCheckItem(
             title: 'Tag identity',
-            detail: 'Identity stability is unknown for this saved scan.',
+            detail: 'Identity comparability is unknown for this saved scan.',
             state: TagCheckState.info,
           ),
         );
     }
-
     final String? ndefSupport = scan.details['ndef.supported'];
     final String? ndefReadStatus = scan.details['ndef.readStatus'];
     if (ndefSupport == 'yes') {
       final int recordCount =
           int.tryParse(scan.details['ndef.recordCount'] ?? '') ??
           scan.ndefRecords.length;
+      final (String, TagCheckState) presentation = switch (ndefReadStatus) {
+        'error' => (
+          'The NDEF container was detected, but its content could not be read.',
+          TagCheckState.warning,
+        ),
+        'disabled' => (
+          'NDEF is available, but content reading is disabled in Settings.',
+          TagCheckState.info,
+        ),
+        _ when recordCount == 0 => (
+          'Standard NDEF is available and currently empty.',
+          TagCheckState.info,
+        ),
+        _ => (
+          '$recordCount standard NDEF record${recordCount == 1 ? '' : 's'} found.',
+          TagCheckState.passed,
+        ),
+      };
       items.add(
         TagCheckItem(
           title: 'NDEF',
-          detail: ndefReadStatus == 'error'
-              ? 'The NDEF container was detected, but its content could not be read.'
-              : ndefReadStatus == 'disabled'
-              ? 'NDEF is available, but content reading is disabled in Settings.'
-              : recordCount == 0
-              ? 'Standard NDEF is available and currently empty.'
-              : '$recordCount standard NDEF record${recordCount == 1 ? '' : 's'} found.',
-          state: ndefReadStatus == 'error'
-              ? TagCheckState.warning
-              : recordCount == 0
-              ? TagCheckState.info
-              : TagCheckState.passed,
+          detail: presentation.$1,
+          state: presentation.$2,
         ),
       );
     } else if (ndefSupport == 'no') {
       items.add(
         const TagCheckItem(
           title: 'NDEF',
-          detail: 'This tag does not expose a standard NDEF container.',
+          detail:
+              'No standard NDEF container was exposed. This is normal for '
+              'many smart cards and protocol-specific NFC tags.',
+          state: TagCheckState.info,
+        ),
+      );
+    } else {
+      items.add(
+        const TagCheckItem(
+          title: 'NDEF',
+          detail: 'NDEF support was not recorded for this scan.',
           state: TagCheckState.info,
         ),
       );
     }
-
     if (scan.warnings.isEmpty) {
       items.add(
         const TagCheckItem(
           title: 'Read quality',
-          detail: 'No read warnings were reported.',
+          detail: 'No core read warnings were reported.',
           state: TagCheckState.passed,
         ),
       );
@@ -102,30 +120,23 @@ abstract final class TagAssessor {
         ),
       );
     }
-
     final bool hasWarnings = items.any(
       (TagCheckItem item) => item.state == TagCheckState.warning,
     );
-    final bool limited = hasWarnings
-        ? false
-        : ndefSupport == 'no'
-        ? true
-        : ndefReadStatus == 'disabled';
-
     if (hasWarnings) {
       return TagAssessment(
         status: TagAssessmentStatus.review,
-        headline: 'Review this tag',
-        summary: 'The tag was detected, but one or more checks need attention.',
+        headline: 'Review this scan',
+        summary:
+            'The tag was detected, but one or more core checks need attention.',
         items: List<TagCheckItem>.unmodifiable(items),
       );
     }
-    if (limited) {
+    if (ndefSupport == 'yes' && ndefReadStatus == 'disabled') {
       return TagAssessment(
         status: TagAssessmentStatus.limited,
         headline: 'Readable with limits',
-        summary:
-            'The tag responded normally but does not expose standard NDEF.',
+        summary: 'The tag was read successfully, but NDEF content reading is disabled.',
         items: List<TagCheckItem>.unmodifiable(items),
       );
     }
@@ -133,7 +144,7 @@ abstract final class TagAssessor {
       status: TagAssessmentStatus.healthy,
       headline: 'Basic checks passed',
       summary:
-          'The tag was read successfully with no basic inspection warnings.',
+          'The tag was read successfully with no core inspection warnings.',
       items: List<TagCheckItem>.unmodifiable(items),
     );
   }

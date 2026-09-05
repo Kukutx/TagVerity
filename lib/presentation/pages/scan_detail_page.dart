@@ -15,26 +15,28 @@ import '../widgets/key_value_row.dart';
 import '../widgets/section_card.dart';
 import '../widgets/tag_assessment_card.dart';
 
-class ScanDetailPage extends StatelessWidget {
-  const ScanDetailPage({
-    required this.scan,
-    required this.showAdvancedFields,
-    super.key,
-  });
-
+class ScanDetailPage extends StatefulWidget {
+  const ScanDetailPage({required this.scan, super.key});
   final NfcScan scan;
-  final bool showAdvancedFields;
+  @override
+  State<ScanDetailPage> createState() => _ScanDetailPageState();
+}
 
+class _ScanDetailPageState extends State<ScanDetailPage> {
+  bool _showAdvancedFields = false;
   @override
   Widget build(BuildContext context) {
+    final NfcScan scan = widget.scan;
     final classification = TagClassifier.classify(scan);
     final List<MapEntry<String, String>> details = scan.details.entries
         .where(
           (MapEntry<String, String> entry) =>
-              showAdvancedFields || !TagFactCatalog.isAdvanced(entry.key),
+              _showAdvancedFields || !TagFactCatalog.isAdvanced(entry.key),
         )
         .toList(growable: false);
-
+    final bool hasAdvancedFields = scan.details.keys.any(
+      TagFactCatalog.isAdvanced,
+    );
     return Scaffold(
       appBar: AppBar(
         title: const Text('Tag details'),
@@ -70,7 +72,7 @@ class ScanDetailPage extends StatelessWidget {
                 ),
                 KeyValueRow(label: 'Platform', value: scan.platform),
                 KeyValueRow(
-                  label: 'Identity stability',
+                  label: 'Identity comparability',
                   value: scan.identityStability.label,
                 ),
                 KeyValueRow(
@@ -120,6 +122,16 @@ class ScanDetailPage extends StatelessWidget {
           const SizedBox(height: 14),
           SectionCard(
             title: 'Public tag data',
+            trailing: hasAdvancedFields
+                ? TextButton(
+                    onPressed: () => setState(
+                      () => _showAdvancedFields = !_showAdvancedFields,
+                    ),
+                    child: Text(
+                      _showAdvancedFields ? 'Hide technical' : 'Show technical',
+                    ),
+                  )
+                : null,
             child: details.isEmpty
                 ? const Text('No additional public tag data was exposed.')
                 : Column(
@@ -182,9 +194,7 @@ class ScanDetailPage extends StatelessWidget {
 
 class _NdefRecordTile extends StatelessWidget {
   const _NdefRecordTile({required this.record});
-
   final NdefRecordInfo record;
-
   @override
   Widget build(BuildContext context) {
     return ExpansionTile(
@@ -215,7 +225,6 @@ class _NdefRecordTile extends StatelessWidget {
 
 class _ScopeNotice extends StatelessWidget {
   const _ScopeNotice();
-
   @override
   Widget build(BuildContext context) {
     final ColorScheme colors = Theme.of(context).colorScheme;

@@ -16,41 +16,33 @@ void main() {
       ndefRecords: const <NdefRecordInfo>[],
       warnings: const <String>[],
     );
-
     final NfcScan restored = NfcScan.fromJson(
       Map<String, dynamic>.from(scan.toJson()),
     );
-
     expect(restored.id, scan.id);
     expect(restored.uidHex, scan.uidHex);
     expect(restored.details, scan.details);
   });
-
   test('ScanSettings keeps sensitive history fields disabled by default', () {
     const ScanSettings settings = ScanSettings();
-
+    expect(settings.readNdef, isTrue);
     expect(settings.saveRawUidInHistory, isFalse);
     expect(settings.saveNdefInHistory, isFalse);
     expect(settings.saveTechnicalIdentifiersInHistory, isFalse);
-
     final ScanSettings restored = ScanSettings.fromJson(
       Map<String, dynamic>.from(settings.toJson()),
     );
-    expect(restored.saveRawUidInHistory, isFalse);
-    expect(restored.saveNdefInHistory, isFalse);
-    expect(restored.saveTechnicalIdentifiersInHistory, isFalse);
+    expect(restored.toJson(), settings.toJson());
   });
-
-  test('ScanSettings clamps limits', () {
-    expect(const ScanSettings().copyWith(historyLimit: 1).historyLimit, 10);
-    expect(const ScanSettings().copyWith(historyLimit: 999).historyLimit, 500);
-    expect(
-      const ScanSettings().copyWith(scanTimeoutSeconds: 1).scanTimeoutSeconds,
-      5,
+  test('ScanSettings copyWith changes only requested behavior', () {
+    const ScanSettings settings = ScanSettings();
+    final ScanSettings updated = settings.copyWith(
+      readNdef: false,
+      saveRawUidInHistory: true,
     );
-    expect(
-      const ScanSettings().copyWith(scanTimeoutSeconds: 999).scanTimeoutSeconds,
-      120,
-    );
+    expect(updated.readNdef, isFalse);
+    expect(updated.saveRawUidInHistory, isTrue);
+    expect(updated.saveNdefInHistory, isFalse);
+    expect(updated.saveTechnicalIdentifiersInHistory, isFalse);
   });
 }
