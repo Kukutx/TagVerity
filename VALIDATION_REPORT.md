@@ -28,8 +28,8 @@ Verified on the maintainer machine without launching an emulator:
 - `dart run tool/validate_project.dart`: passed.
 - strict maintainer bootstrap with `--strict-sdk --single-sdk`: passed against Flutter 3.47.1 / Dart 3.13.1.
 - `flutter analyze`: **0 issues**.
-- `flutter test --coverage`: **105/105 tests passed**.
-- Line coverage: **77.9% (1397/1794)**, above the enforced **75%** floor. Coverage growth is concentrated in controller concurrency, local persistence, privacy, accessibility, diagnostics, report encoding, and detail UI rather than generated/platform code.
+- `flutter test --coverage`: **108/108 tests passed**.
+- Line coverage: **78.4% (1410/1799)**, above the enforced **75%** floor. Coverage growth is concentrated in controller concurrency, local persistence, privacy, accessibility, diagnostics, report encoding, and detail UI rather than generated/platform code.
 - Widget coverage includes four-tab navigation, global error visibility, sensitive-setting confirmation, dark mode, **all four core tabs at 320px + 200% text scaling**, populated Inspect/Batch/History results at the same stress size, and a full Tag Details stress pass with technical/NDEF expansion.
 - Android debug APK compilation: passed.
 - Android debug AAB compilation with `android-arm,android-arm64`: passed.
@@ -62,7 +62,7 @@ The current direct dependencies are already at their latest resolvable versions.
 - Searchable local history.
 - Privacy-minimized history defaults and privacy-safe legacy migration, including replacement of legacy UID-derived fingerprints with session-only history fingerprints and replacement of early event IDs that embedded a fingerprint prefix.
 - Saved scan warnings are normalized to generic categories before history retention; malformed JSON parse failures use fixed messages rather than echoing persisted source text.
-- Default technical metadata retention is allowlist-based so unknown/future detail keys are not silently written to privacy-minimized history.
+- Technical metadata retention is allowlist-based in both default and opt-in modes: opt-in adds only cataloged linkable keys, and unknown/future detail keys remain excluded and are scrubbed on startup.
 - After current history becomes authoritative, the stale legacy history key is blanked before deletion is attempted so a failed remove cannot strand raw UID/NDEF data.
 - NFC-F manufacturer/PMm-style metadata is treated as linkable technical data and scrubbed when technical-identifier retention is disabled.
 - Persisted history rejects schema-incompatible fingerprints and duplicate technology entries instead of exporting malformed scan records.

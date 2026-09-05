@@ -17,7 +17,7 @@
 - Legacy scan IDs that embedded the first 12 hexadecimal characters of a UID-derived fingerprint are replaced with privacy-safe event IDs during migration/startup cleanup.
 - Legacy warning strings and malformed-JSON errors no longer carry raw platform or persisted payload text into saved history/global diagnostics.
 - Once the current history key is authoritative, the stale legacy key is overwritten with an empty value before deletion so a failed remove cannot strand raw UID/NDEF data.
-- Default technical metadata retention now uses an explicit reviewed allowlist; unknown/future detail keys are dropped rather than silently persisted.
+- Technical metadata retention now uses an explicit reviewed allowlist in both default and opt-in modes; opting in adds only known linkable keys, while unknown/future detail keys remain excluded until explicitly cataloged.
 - Android app-data backup/device-transfer paths are explicitly disabled/excluded, including the DataStore/file and legacy SharedPreferences domains.
 - Added latest-request-wins guards for overlapping NFC availability refreshes so stale results cannot overwrite newer state.
 - Added startup privacy enforcement so previously retained sensitive history is hidden immediately and rewritten to match current settings.

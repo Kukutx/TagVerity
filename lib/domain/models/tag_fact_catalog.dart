@@ -125,15 +125,25 @@ abstract final class TagFactCatalog {
   static bool isAdvanced(String key) => advancedKeys.contains(key);
   static bool isLinkable(String key) => linkableKeys.contains(key);
   static bool isHistorySafe(String key) => historySafeKeys.contains(key);
-  static Map<String, String> privacyScrubbedDetails(
-    Map<String, String> details,
-  ) {
+  static bool isHistoryRetainable(String key, {required bool includeLinkable}) {
+    return isHistorySafe(key) || (includeLinkable && isLinkable(key));
+  }
+
+  static Map<String, String> historyRetainedDetails(
+    Map<String, String> details, {
+    required bool includeLinkable,
+  }) {
     return Map<String, String>.unmodifiable(
       Map<String, String>.fromEntries(
         details.entries.where(
-          (MapEntry<String, String> entry) => isHistorySafe(entry.key),
+          (MapEntry<String, String> entry) =>
+              isHistoryRetainable(entry.key, includeLinkable: includeLinkable),
         ),
       ),
     );
   }
+
+  static Map<String, String> privacyScrubbedDetails(
+    Map<String, String> details,
+  ) => historyRetainedDetails(details, includeLinkable: false);
 }

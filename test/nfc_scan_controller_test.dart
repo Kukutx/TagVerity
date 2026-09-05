@@ -36,6 +36,61 @@ void main() {
     expect(repository.history.single.uidHex, isNull);
     controller.dispose();
   });
+
+  test('opt-in technical retention still drops unknown detail keys', () async {
+    final _MemoryRepository repository = _MemoryRepository()
+      ..settings = const ScanSettings(saveTechnicalIdentifiersInHistory: true);
+    final NfcScanController controller = NfcScanController(
+      readerService: _FakeReaderService(<NfcScan>[
+        _scan('scan-opt-in', '0123456789abcdef'),
+      ]),
+      repository: repository,
+      exportService: _FakeExportService(),
+    );
+
+    await controller.initialize();
+    await controller.startScan();
+
+    expect(controller.history.single.details['barcode.value'], 'AA:BB:CC:DD');
+    expect(
+      controller.history.single.details['future.unknownSensitiveField'],
+      isNull,
+    );
+    expect(controller.history.single.uidFingerprint, '0123456789abcdef');
+    controller.dispose();
+  });
+
+  test(
+    'startup removes unknown detail keys even with technical opt-in',
+    () async {
+      final NfcScan saved = _scan(
+        'saved-opt-in',
+        '0123456789abcdef',
+      ).copyWith(uidHex: null, ndefRecords: const <NdefRecordInfo>[]);
+      final _MemoryRepository repository = _MemoryRepository()
+        ..settings = const ScanSettings(saveTechnicalIdentifiersInHistory: true)
+        ..history = <NfcScan>[saved];
+      final NfcScanController controller = NfcScanController(
+        readerService: _FakeReaderService(const <NfcScan>[]),
+        repository: repository,
+        exportService: _FakeExportService(),
+      );
+
+      await controller.initialize();
+
+      expect(controller.history.single.details['barcode.value'], 'AA:BB:CC:DD');
+      expect(
+        controller.history.single.details['future.unknownSensitiveField'],
+        isNull,
+      );
+      expect(
+        repository.history.single.details['future.unknownSensitiveField'],
+        isNull,
+      );
+      controller.dispose();
+    },
+  );
+
   test(
     'startup rewrites history warnings without raw platform errors',
     () async {
