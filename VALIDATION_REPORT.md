@@ -21,12 +21,13 @@ GitHub Actions is the authoritative software merge gate. It requires:
 - the complete Flutter test suite with LCOV coverage collection;
 - a minimum **75% line coverage** floor;
 - Android debug APK compilation;
-- unsigned Android release AAB compilation for `android-arm,android-arm64` plus ARM32/ARM64 runtime-entry verification;
+- unsigned Android release AAB compilation for `android-arm,android-arm64` plus ARM32/ARM64 runtime-entry and final merged-manifest NFC/no-INTERNET verification;
 - unsigned iOS **release** compilation on macOS.
 A green CI run does not replace physical NFC hardware testing.
 ## Local no-emulator validation for the deep-audit hardening work
 Verified on the maintainer machine without launching an emulator:
 - `dart run tool/validate_project.dart`: passed.
+- Release-metadata validator negative probes: passed for missing Android NFC permission, broadened FileProvider scope, broken iOS Type 4 AID, broken TAG entitlement, broken Xcode entitlement wiring, and removal of the CI no-INTERNET marker; each mutation failed validation and was restored.
 - strict maintainer bootstrap with `--strict-sdk --single-sdk`: passed against Flutter 3.47.1 / Dart 3.13.1.
 - `flutter analyze`: **0 issues**.
 - `flutter test --coverage`: **169/169 tests passed**.
@@ -35,6 +36,7 @@ Verified on the maintainer machine without launching an emulator:
 - Android debug APK compilation: passed.
 - Android debug AAB compilation with `android-arm,android-arm64`: passed.
 - Android **release AAB** compilation with `android-arm,android-arm64`: passed (**32.1 MB**); both `armeabi-v7a` and `arm64-v8a` contain `libapp.so`/`libflutter.so`, and no x86_64 Flutter app runtime is packaged.
+- Final release-AAB merged-manifest inspection: `android.permission.NFC` present, `android.hardware.nfc` present, and `android.permission.INTERNET` absent.
 - A detached no-secrets CI simulation with no `android/key.properties` also produced the same **32.1 MB** release AAB and passed the ARM32/ARM64/no-x86 runtime-entry check, confirming the release compile gate does not require repository signing secrets.
 - Release AAB signature verification: `jar verified`. The local upload certificate is self-signed, which is normal for an Android upload key; rebuild final store artifacts from merged `main`.
 - iOS `Info.plist` and entitlements parse successfully; `Info.plist` includes NFC Forum Type 3 / NDEF FeliCa system code `12FC` and standard NFC Forum Type 4 / NDEF ISO 7816 AID `D2760000850101`.
@@ -84,7 +86,7 @@ The current direct dependencies are already at their latest resolvable versions.
 - Current-tab-only page construction instead of rebuilding four always-mounted tab pages.
 ## Platform validation
 Android and iOS project files, NFC permissions/entitlements, branding, and native share bridges are committed.
-CI can verify Android debug/release compilation, release-AAB ABI contents, and an unsigned iOS release build. It cannot verify NFC antenna behavior, OS NFC session UX, device-specific tag support, Apple signing, or store submission.
+CI can verify Android debug/release compilation, release-AAB ABI plus final NFC/no-INTERNET manifest contents, static Android NFC/FileProvider policy, iOS usage/AID/TAG entitlement and Debug/Profile/Release project wiring, and an unsigned iOS release build. It cannot verify NFC antenna behavior, OS NFC session UX, device-specific tag support, Apple signing, or store submission.
 The physical-device acceptance matrix remains the `v1.0 Core` release gate in GitHub issue #2 and `docs/DEVICE_TEST_CHECKLIST.md`.
 ## Previous signed Android build baseline
 The signed files previously produced locally on **2026-09-03** were:

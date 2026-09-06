@@ -7,7 +7,7 @@
 - [ ] `dart run tool/validate_project.dart` succeeds.
 - [ ] `flutter analyze` reports no issues.
 - [ ] `flutter test` passes, including Widget Tests.
-- [ ] GitHub Actions completes formatting, metadata/schema validation, tests, Android debug build, unsigned ARM32+ARM64 release AAB build with ABI verification, and unsigned iOS release compile.
+- [ ] GitHub Actions completes formatting, metadata/schema validation, tests, Android debug build, unsigned ARM32+ARM64 release AAB build with ABI plus final NFC/no-INTERNET merged-manifest verification, and unsigned iOS release compile.
 ## Product
 - [ ] Inspect flow reads known ISO 14443 / NFC-A or NFC-B tags.
 - [ ] NFC-V / ISO 15693 reads on representative hardware.

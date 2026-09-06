@@ -49,6 +49,7 @@ jobs:
           bundle = 'build/app/outputs/bundle/release/app-release.aab'
           with zipfile.ZipFile(bundle) as archive:
               names = set(archive.namelist())
+              manifest = archive.read('base/manifest/AndroidManifest.xml')
 
           required = {
               'base/lib/armeabi-v7a/libapp.so',
@@ -69,7 +70,21 @@ jobs:
           if unexpected_x86:
               raise SystemExit(f'Unexpected x86 Flutter runtime entries: {unexpected_x86}')
 
-          print('Android release AAB contains ARM32 + ARM64 Flutter runtimes only.')
+          for required_manifest_string in (
+              b'android.permission.NFC',
+              b'android.hardware.nfc',
+          ):
+              if required_manifest_string not in manifest:
+                  raise SystemExit(
+                      f'Missing required release manifest entry: {required_manifest_string!r}'
+                  )
+          if b'android.permission.INTERNET' in manifest:
+              raise SystemExit('Release AAB unexpectedly requests INTERNET permission.')
+
+          print(
+              'Android release AAB contains ARM32 + ARM64 Flutter runtimes, '
+              'requires NFC, and does not request INTERNET.'
+          )
           PY
   ios-build:
     needs: analyze-test-build
