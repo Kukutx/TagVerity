@@ -31,11 +31,15 @@ final class NfcManagerReaderService implements NfcReaderService {
     NfcManager? manager,
     this._tagInspector,
     Duration? scanTimeout,
+    Duration? sessionStartTimeout,
     Duration? sessionCloseTimeout,
   }) : _manager = manager ?? NfcManager.instance,
        _scanTimeout =
            scanTimeout ??
            const Duration(seconds: AppConstants.defaultScanTimeoutSeconds),
+       _sessionStartTimeout =
+           sessionStartTimeout ??
+           const Duration(seconds: AppConstants.sessionStartTimeoutSeconds),
        _sessionCloseTimeout =
            sessionCloseTimeout ??
            const Duration(seconds: AppConstants.sessionCloseTimeoutSeconds);
@@ -43,6 +47,7 @@ final class NfcManagerReaderService implements NfcReaderService {
   final NfcManager _manager;
   final NfcTagInspector? _tagInspector;
   final Duration _scanTimeout;
+  final Duration _sessionStartTimeout;
   final Duration _sessionCloseTimeout;
   int _sessionGeneration = 0;
   int _scanSequence = 0;
@@ -50,6 +55,8 @@ final class NfcManagerReaderService implements NfcReaderService {
   bool _discoveryClaimed = false;
   bool _terminalCallbackDelivered = false;
   Timer? _timeoutTimer;
+  Future<void>? _pendingNativeStart;
+  bool _pendingNativeStartCleanupScheduled = false;
   Future<void>? _pendingNativeClose;
   bool _isActiveSession(int generation) =>
       _activeSessionGeneration == generation;
@@ -79,10 +86,10 @@ final class NfcManagerReaderService implements NfcReaderService {
     required ScanResultCallback onScan,
     required ScanErrorCallback onError,
   }) async {
-    _ensureNoPendingNativeClose();
+    _ensureNoPendingNativeTransition();
     if (_activeSessionGeneration != null) {
       await stopScan();
-      _ensureNoPendingNativeClose();
+      _ensureNoPendingNativeTransition();
     }
     _sessionGeneration += 1;
     final int generation = _sessionGeneration;
@@ -91,8 +98,10 @@ final class NfcManagerReaderService implements NfcReaderService {
     _terminalCallbackDelivered = false;
     _timeoutTimer?.cancel();
     _timeoutTimer = null;
+
+    late final Future<void> startFuture;
     try {
-      await _manager.startSession(
+      startFuture = _manager.startSession(
         pollingOptions: const <NfcPollingOption>{
           NfcPollingOption.iso14443,
           NfcPollingOption.iso15693,
@@ -107,12 +116,17 @@ final class NfcManagerReaderService implements NfcReaderService {
           }
           _terminalCallbackDelivered = true;
           _invalidateSessionState(generation);
+          final Future<void>? pendingStart = _pendingNativeStart;
+          if (pendingStart != null) {
+            _schedulePendingNativeStartCleanup(pendingStart);
+          }
           onError(_friendlyIosError(error));
         },
         onDiscovered: (NfcTag tag) async {
           if (!_isActiveSession(generation) ||
               _terminalCallbackDelivered ||
-              _discoveryClaimed) {
+              _discoveryClaimed ||
+              _pendingNativeStart != null) {
             return;
           }
           _discoveryClaimed = true;
@@ -158,19 +172,48 @@ final class NfcManagerReaderService implements NfcReaderService {
           }
         },
       );
-      if (_isActiveSession(generation) && !_terminalCallbackDelivered) {
-        _timeoutTimer = Timer(
-          _scanTimeout,
-          () => unawaited(_handleTimeout(generation, onError)),
-        );
-      }
     } on Object catch (error) {
+      if (_isActiveSession(generation)) {
+        _invalidateSessionState(generation);
+      }
+      throw StateError(
+        'Could not start NFC scanning: ${ErrorText.clean(error)}',
+      );
+    }
+
+    _pendingNativeStart = startFuture;
+    try {
+      await startFuture.timeout(_sessionStartTimeout);
+    } on TimeoutException {
+      if (_isActiveSession(generation)) {
+        _terminalCallbackDelivered = true;
+        _invalidateSessionState(generation);
+      }
+      _schedulePendingNativeStartCleanup(startFuture);
+      throw StateError(
+        'Could not start NFC scanning: native NFC session start timed out '
+        'after ${AppConstants.sessionStartTimeoutSeconds} seconds.',
+      );
+    } on Object catch (error) {
+      _clearPendingNativeStart(startFuture);
       if (!_isActiveSession(generation)) {
         return;
       }
       _invalidateSessionState(generation);
       throw StateError(
         'Could not start NFC scanning: ${ErrorText.clean(error)}',
+      );
+    }
+
+    if (!_isActiveSession(generation)) {
+      _schedulePendingNativeStartCleanup(startFuture);
+      return;
+    }
+    _clearPendingNativeStart(startFuture);
+    if (!_terminalCallbackDelivered) {
+      _timeoutTimer = Timer(
+        _scanTimeout,
+        () => unawaited(_handleTimeout(generation, onError)),
       );
     }
   }
@@ -200,6 +243,15 @@ final class NfcManagerReaderService implements NfcReaderService {
     _terminalCallbackDelivered = true;
     _timeoutTimer?.cancel();
     _timeoutTimer = null;
+    final Future<void>? pendingStart = _pendingNativeStart;
+    if (pendingStart != null) {
+      final int? generation = _activeSessionGeneration;
+      if (generation != null) {
+        _invalidateSessionState(generation);
+      }
+      _schedulePendingNativeStartCleanup(pendingStart);
+      return;
+    }
     final int? generation = _activeSessionGeneration;
     if (generation == null) {
       return;
@@ -233,15 +285,7 @@ final class NfcManagerReaderService implements NfcReaderService {
       // The OS may already have invalidated the NFC session.
       return true;
     }
-    _pendingNativeClose = closeFuture;
-    unawaited(
-      closeFuture.then<void>(
-        (_) => _clearPendingNativeClose(closeFuture),
-        onError: (Object _, StackTrace _) {
-          _clearPendingNativeClose(closeFuture);
-        },
-      ),
-    );
+    _trackPendingNativeClose(closeFuture);
     try {
       await closeFuture.timeout(_sessionCloseTimeout);
       _clearPendingNativeClose(closeFuture);
@@ -255,12 +299,79 @@ final class NfcManagerReaderService implements NfcReaderService {
     }
   }
 
+  void _ensureNoPendingNativeTransition() {
+    if (_pendingNativeStart != null) {
+      throw StateError(
+        'The previous NFC reader session is still starting or being '
+        'cleaned up. Try again shortly.',
+      );
+    }
+    _ensureNoPendingNativeClose();
+  }
+
   void _ensureNoPendingNativeClose() {
     if (_pendingNativeClose != null) {
       throw StateError(
         'The previous NFC reader session is still closing. Try again shortly.',
       );
     }
+  }
+
+  void _schedulePendingNativeStartCleanup(Future<void> startFuture) {
+    if (!identical(_pendingNativeStart, startFuture) ||
+        _pendingNativeStartCleanupScheduled) {
+      return;
+    }
+    _pendingNativeStartCleanupScheduled = true;
+    unawaited(
+      startFuture.then<void>(
+        (_) => _cleanupLateNativeStart(startFuture),
+        onError: (Object _, StackTrace _) {
+          _clearPendingNativeStart(startFuture);
+        },
+      ),
+    );
+  }
+
+  Future<void> _cleanupLateNativeStart(Future<void> startFuture) async {
+    if (!identical(_pendingNativeStart, startFuture)) {
+      return;
+    }
+    late final Future<void> closeFuture;
+    try {
+      closeFuture = _manager.stopSession();
+    } on Object {
+      _clearPendingNativeStart(startFuture);
+      return;
+    }
+    _trackPendingNativeClose(closeFuture);
+    // Transition the lock from start to close without a gap where
+    // a replacement session could start.
+    _clearPendingNativeStart(startFuture);
+    try {
+      await closeFuture;
+    } on Object {
+      // The close lock is cleared by the tracking handler.
+    }
+  }
+
+  void _clearPendingNativeStart(Future<void> startFuture) {
+    if (identical(_pendingNativeStart, startFuture)) {
+      _pendingNativeStart = null;
+      _pendingNativeStartCleanupScheduled = false;
+    }
+  }
+
+  void _trackPendingNativeClose(Future<void> closeFuture) {
+    _pendingNativeClose = closeFuture;
+    unawaited(
+      closeFuture.then<void>(
+        (_) => _clearPendingNativeClose(closeFuture),
+        onError: (Object _, StackTrace _) {
+          _clearPendingNativeClose(closeFuture);
+        },
+      ),
+    );
   }
 
   void _clearPendingNativeClose(Future<void> closeFuture) {

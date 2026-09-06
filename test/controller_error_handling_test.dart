@@ -21,6 +21,32 @@ void main() {
     expect(controller.errorMessage, contains('Turn on NFC'));
     controller.dispose();
   });
+  test(
+    'reader start exceptions reset scanning state and surface globally',
+    () async {
+      final _Reader reader = _Reader(
+        startException: StateError('native NFC session start timed out'),
+      );
+      final NfcScanController controller = _controller(reader: reader);
+      await controller.initialize();
+
+      await controller.startScan();
+
+      expect(controller.isScanning, isFalse);
+      expect(
+        controller.errorMessage,
+        contains('native NFC session start timed out'),
+      );
+      expect(
+        controller.diagnosticEvents.any(
+          (event) => event.code == 'nfc.scan.start.failed',
+        ),
+        isTrue,
+      );
+      controller.dispose();
+    },
+  );
+
   test('reader terminal errors return controller to usable state', () async {
     final _Reader reader = _Reader(scanError: 'Scan timed out');
     final NfcScanController controller = _controller(reader: reader);
@@ -496,10 +522,12 @@ final class _Reader implements NfcReaderService {
     this.availability = NfcSupportStatus.enabled,
     this.scan,
     this.scanError,
+    this.startException,
   });
   final NfcSupportStatus availability;
   final NfcScan? scan;
   final String? scanError;
+  final Object? startException;
   int startCalls = 0;
   @override
   Future<NfcSupportStatus> checkAvailability() async => availability;
@@ -510,6 +538,9 @@ final class _Reader implements NfcReaderService {
     required ScanErrorCallback onError,
   }) async {
     startCalls++;
+    if (startException case final Object error) {
+      throw error;
+    }
     if (scanError case final String message) {
       onError(message);
       return;
