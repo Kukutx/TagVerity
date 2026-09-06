@@ -67,6 +67,18 @@ void main() {
     },
   );
 
+  test('batch CSV repeat status is derived only from exported scans', () {
+    final NfcScan first = _scan('f' * 64, TagIdentityStability.stable);
+    final NfcScan second = _scan('0' * 64, TagIdentityStability.stable);
+
+    final List<String> lines = ReportEncoder.batchCsv(<NfcScan>[first, second])
+        .trimRight()
+        .split('\n');
+
+    expect(lines[1], endsWith('"no"'));
+    expect(lines[2], endsWith('"no"'));
+  });
+
   test('CSV escapes embedded quotes and filename timestamps avoid colons', () {
     final NfcScan scan = _scan(
       'e' * 64,

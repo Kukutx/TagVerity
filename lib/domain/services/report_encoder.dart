@@ -2,7 +2,6 @@ import 'dart:convert';
 
 import '../../core/constants/app_constants.dart';
 import '../../core/utils/byte_utils.dart';
-import '../models/batch_summary.dart';
 import '../models/nfc_scan.dart';
 import 'scan_contract.dart';
 import 'tag_assessor.dart';
@@ -25,11 +24,19 @@ abstract final class ReportEncoder {
   static String prettyJson(Object? value) =>
       const JsonEncoder.withIndent('  ').convert(value);
 
-  static String batchCsv(List<NfcScan> scans, {BatchSummary? summary}) {
+  static String batchCsv(List<NfcScan> scans) {
     ScanContract.validateAll(scans);
-    final BatchSummary resolvedSummary =
-        summary ?? BatchSummary.fromScans(scans);
-    final Set<String> repeated = resolvedSummary.repeatedFingerprints;
+    final Map<String, int> comparableIdentityCounts = <String, int>{};
+    for (final NfcScan scan in scans) {
+      if (!scan.hasComparableIdentity) {
+        continue;
+      }
+      comparableIdentityCounts.update(
+        scan.uidFingerprint,
+        (int value) => value + 1,
+        ifAbsent: () => 1,
+      );
+    }
     final StringBuffer buffer = StringBuffer()
       ..writeln(
         'scanned_at,short_fingerprint,identity_stability,technologies,'
@@ -46,7 +53,7 @@ abstract final class ReportEncoder {
           TagAssessor.assess(scan).status.name,
           scan.warnings.length.toString(),
           scan.hasComparableIdentity
-              ? repeated.contains(scan.uidFingerprint)
+              ? comparableIdentityCounts[scan.uidFingerprint]! > 1
                     ? 'yes'
                     : 'no'
               : 'unknown',
