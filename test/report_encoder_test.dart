@@ -9,7 +9,7 @@ import 'package:tagverity/domain/services/report_encoder.dart';
 void main() {
   test('export envelope carries versioned read-only metadata', () {
     final Map<String, Object?> envelope = ReportEncoder.exportEnvelope(
-      <NfcScan>[_scan('stable-a', TagIdentityStability.stable)],
+      <NfcScan>[_scan('a' * 64, TagIdentityStability.stable)],
     );
 
     expect(envelope['schemaVersion'], AppConstants.exportSchemaVersion);
@@ -28,14 +28,27 @@ void main() {
     expect(() => jsonDecode(pretty), returnsNormally);
   });
 
+  test('JSON export rejects scans that violate the public contract', () {
+    final NfcScan invalid = _scan('not-a-sha256', TagIdentityStability.stable);
+
+    expect(
+      () => ReportEncoder.exportEnvelope(<NfcScan>[invalid]),
+      throwsFormatException,
+    );
+    expect(
+      () => ReportEncoder.batchCsv(<NfcScan>[invalid]),
+      throwsFormatException,
+    );
+  });
+
   test(
     'batch CSV reports repeated, unique and session-only identity semantics',
     () {
       final List<NfcScan> scans = <NfcScan>[
-        _scan('same', TagIdentityStability.stable),
-        _scan('same', TagIdentityStability.stable),
-        _scan('unique', TagIdentityStability.stable),
-        _scan('session', TagIdentityStability.sessionOnly),
+        _scan('b' * 64, TagIdentityStability.stable),
+        _scan('b' * 64, TagIdentityStability.stable),
+        _scan('c' * 64, TagIdentityStability.stable),
+        _scan('d' * 64, TagIdentityStability.sessionOnly),
       ];
 
       final List<String> lines = ReportEncoder.batchCsv(scans)
@@ -56,7 +69,7 @@ void main() {
 
   test('CSV escapes embedded quotes and filename timestamps avoid colons', () {
     final NfcScan scan = _scan(
-      'quoted',
+      'e' * 64,
       TagIdentityStability.stable,
       technologies: const <String>['Tech "quoted"'],
     );
@@ -78,7 +91,7 @@ NfcScan _scan(
     id: 'scan-$fingerprint',
     scannedAt: DateTime.utc(2026, 9, 5, 12, 34, 56),
     platform: 'android',
-    uidHex: '04:AA:BB:CC',
+    uidHex: null,
     uidFingerprint: fingerprint,
     identityStability: stability,
     technologies: technologies,

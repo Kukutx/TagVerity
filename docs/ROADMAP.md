@@ -38,8 +38,8 @@ TagVerity is developed **core-first**. Reliability, clear NFC semantics, privacy
 - [x] Disabling sensitive retention is privacy-first: future retention stops first, in-memory history is hidden immediately, disk rewrites are serialized, and cleanup failure stays visible.
 - [x] History persistence is serialized across scan saves, delete, clear, scrub, and privacy rewrites, including recovery after a queued write failure.
 - [x] Corrupt local history/settings surface an error instead of silently pretending data is empty.
-- [x] Persisted history is validated on load and before save for fingerprint/UID shape, unique technologies/scan IDs, sequential NDEF indexes, strict NDEF hex/length invariants, known scan/NDEF top-level fields, and the legacy 500-record ceiling while retaining/recovering early-v2 identity semantics.
-- [x] JSON export for scans/history and CSV export for batches.
+- [x] Persisted history is raw-shape/type validated on load and before save, then checked through the shared model-level scan contract for fingerprint/UID/identity, technology, and NDEF invariants; the legacy 500-record ceiling and early-v2 identity recovery remain compatible.
+- [x] JSON export for scans/history and CSV export for batches validate the shared scan contract before encoding; preparation failures surface through the global error path instead of false success or uncaught exceptions.
 - [x] Native Android/iOS sharing with failure reporting, isolated export directories, and 24-hour stale temporary-export cleanup.
 - [x] Android app-data backup/device-transfer exclusions for local history/settings with validator coverage.
 - [x] Privacy-safe diagnostics.

@@ -54,6 +54,32 @@ void main() {
     controller.dispose();
   });
 
+  test(
+    'invalid scan models fail export preparation without false success',
+    () async {
+      final NfcScan invalid = _scan().copyWith(uidFingerprint: 'f' * 64);
+      final NfcScanController controller = NfcScanController(
+        readerService: _Reader(scan: invalid),
+        repository: _MemoryRepository(),
+        exportService: _NoopExportService(),
+      );
+      await controller.initialize();
+      await controller.startScan();
+
+      final bool copied = await controller.copyCurrentScanJson();
+
+      expect(copied, isFalse);
+      expect(controller.errorMessage, contains('Could not prepare scan JSON'));
+      expect(
+        controller.diagnosticEvents.any(
+          (event) => event.code == 'export.encode.failed',
+        ),
+        isTrue,
+      );
+      controller.dispose();
+    },
+  );
+
   test('share failures surface as global controller error', () async {
     final NfcScanController controller = NfcScanController(
       readerService: _Reader(scan: _scan()),
@@ -309,7 +335,10 @@ void main() {
       controller.history.single.identityStability,
       TagIdentityStability.sessionOnly,
     );
-    expect(controller.history.single.uidFingerprint, isNot('a' * 64));
+    expect(
+      controller.history.single.uidFingerprint,
+      isNot('732f6986a0dc9a440072e6868883900086befc53f156041f3778bb763a3dbd95'),
+    );
     expect(controller.history.single.ndefRecords, isEmpty);
     expect(controller.history.single.details['barcode.value'], isNull);
     expect(repository.history.single.uidHex, isNull);
@@ -447,7 +476,8 @@ NfcScan _scan() {
     scannedAt: DateTime.utc(2026, 9, 5),
     platform: 'android',
     uidHex: '04:AA:BB:CC',
-    uidFingerprint: 'a' * 64,
+    uidFingerprint:
+        '732f6986a0dc9a440072e6868883900086befc53f156041f3778bb763a3dbd95',
     identityStability: TagIdentityStability.stable,
     technologies: const <String>['NfcA'],
     details: const <String, String>{

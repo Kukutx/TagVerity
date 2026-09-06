@@ -5,6 +5,8 @@ void main() {
   final String pubspec = File('pubspec.yaml').readAsStringSync();
   final String constants = File('lib/core/constants/app_constants.dart')
       .readAsStringSync();
+  final String scanContract = File('lib/domain/services/scan_contract.dart')
+      .readAsStringSync();
   final Map<String, dynamic> scanSchema = jsonDecode(
     File('docs/nfc-scan-export.schema.json').readAsStringSync(),
   ) as Map<String, dynamic>;
@@ -59,9 +61,28 @@ void main() {
   final Map<String, dynamic> ndefProperties =
       (scanDefinitions['ndefRecord'] as Map<String, dynamic>)['properties']
           as Map<String, dynamic>;
-  const String uidHexPattern = r'^(?:[0-9A-Fa-f]{2})(?::[0-9A-Fa-f]{2})*$';
-  const String colonHexPattern = r'^(?:[0-9A-Fa-f]{2}(?::[0-9A-Fa-f]{2})*)?$';
-  if ((scanProperties['uidHex'] as Map<String, dynamic>)['pattern'] !=
+  final String fingerprintPattern = _constantString(
+    scanContract,
+    '_fingerprintPatternSource',
+  );
+  final String uidHexPattern = _constantString(
+    scanContract,
+    '_uidHexPatternSource',
+  );
+  final String colonHexPattern = _constantString(
+    scanContract,
+    '_colonHexPatternSource',
+  );
+  final int maximumPayloadPreviewBytes = _constantInt(
+    scanContract,
+    '_maximumPayloadPreviewBytes',
+  );
+  final int maximumPayloadPreviewCharacters = maximumPayloadPreviewBytes == 0
+      ? 0
+      : maximumPayloadPreviewBytes * 3 - 1;
+  if ((scanProperties['uidFingerprint'] as Map<String, dynamic>)['pattern'] !=
+          fingerprintPattern ||
+      (scanProperties['uidHex'] as Map<String, dynamic>)['pattern'] !=
           uidHexPattern ||
       (ndefProperties['identifierHex'] as Map<String, dynamic>)['pattern'] !=
           colonHexPattern ||
@@ -70,8 +91,10 @@ void main() {
           colonHexPattern ||
       (ndefProperties['payloadPreviewHex']
               as Map<String, dynamic>)['maxLength'] !=
-          191) {
-    _fail('Scan export hex-field constraints no longer match runtime output.');
+          maximumPayloadPreviewCharacters) {
+    _fail(
+      'Scan export schema constraints no longer match the runtime scan contract.',
+    );
   }
   final Map<String, dynamic> diagnosticSettings =
       ((diagnosticsSchema['properties'] as Map<String, dynamic>)['settings']
@@ -152,9 +175,18 @@ int _backupExclusionCount(String source, String domain) {
 int _constantInt(String source, String name) {
   final RegExpMatch? match = RegExp('$name\\s*=\\s*(\\d+)').firstMatch(source);
   if (match == null) {
-    _fail('Could not locate $name in AppConstants.');
+    _fail('Could not locate integer constant $name.');
   }
   return int.parse(match.group(1)!);
+}
+
+String _constantString(String source, String name) {
+  final RegExpMatch? match = RegExp("$name\\s*=\\s*r?'([^']*)'")
+      .firstMatch(source);
+  if (match == null) {
+    _fail('Could not locate string constant $name.');
+  }
+  return match.group(1)!;
 }
 
 Never _fail(String message) {

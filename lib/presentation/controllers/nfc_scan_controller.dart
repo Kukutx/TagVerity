@@ -760,56 +760,92 @@ final class NfcScanController extends ChangeNotifier
   Future<bool> copyCurrentScanJson() async {
     final NfcScan? scan = _currentScan;
     if (scan == null) return false;
-    return _copyText(
-      ReportEncoder.prettyJson(ReportEncoder.exportEnvelope(<NfcScan>[scan])),
-      label: 'scan JSON',
+    final String? content = _prepareExport(
+      'scan JSON',
+      () => ReportEncoder.prettyJson(
+        ReportEncoder.exportEnvelope(<NfcScan>[scan]),
+      ),
     );
+    if (content == null) return false;
+    return _copyText(content, label: 'scan JSON');
   }
 
   Future<void> shareCurrentScanJson() async {
     final NfcScan? scan = _currentScan;
     if (scan == null) return;
-    await _shareTextFile(
-      filename: 'tagverity-scan-${ReportEncoder.timestampForFilename()}.json',
-      content: ReportEncoder.prettyJson(
+    final String? content = _prepareExport(
+      'scan JSON',
+      () => ReportEncoder.prettyJson(
         ReportEncoder.exportEnvelope(<NfcScan>[scan]),
       ),
+    );
+    if (content == null) return;
+    await _shareTextFile(
+      filename: 'tagverity-scan-${ReportEncoder.timestampForFilename()}.json',
+      content: content,
       mimeType: 'application/json',
       subject: 'TagVerity NFC scan',
     );
   }
 
-  Future<bool> copyHistoryJson() {
-    return _copyText(
-      ReportEncoder.prettyJson(ReportEncoder.exportEnvelope(_history)),
-      label: 'history JSON',
+  Future<bool> copyHistoryJson() async {
+    final String? content = _prepareExport(
+      'history JSON',
+      () => ReportEncoder.prettyJson(ReportEncoder.exportEnvelope(_history)),
     );
+    if (content == null) return false;
+    return _copyText(content, label: 'history JSON');
   }
 
   Future<void> shareHistoryJson() async {
+    final String? content = _prepareExport(
+      'history JSON',
+      () => ReportEncoder.prettyJson(ReportEncoder.exportEnvelope(_history)),
+    );
+    if (content == null) return;
     await _shareTextFile(
       filename:
           'tagverity-history-${ReportEncoder.timestampForFilename()}.json',
-      content: ReportEncoder.prettyJson(ReportEncoder.exportEnvelope(_history)),
+      content: content,
       mimeType: 'application/json',
       subject: 'TagVerity scan history',
     );
   }
 
-  Future<bool> copyBatchCsv() {
-    return _copyText(
-      ReportEncoder.batchCsv(_batchScans, summary: _batchSummary),
-      label: 'batch CSV',
+  Future<bool> copyBatchCsv() async {
+    final String? content = _prepareExport(
+      'batch CSV',
+      () => ReportEncoder.batchCsv(_batchScans, summary: _batchSummary),
     );
+    if (content == null) return false;
+    return _copyText(content, label: 'batch CSV');
   }
 
   Future<void> shareBatchCsv() async {
+    final String? content = _prepareExport(
+      'batch CSV',
+      () => ReportEncoder.batchCsv(_batchScans, summary: _batchSummary),
+    );
+    if (content == null) return;
     await _shareTextFile(
       filename: 'tagverity-batch-${ReportEncoder.timestampForFilename()}.csv',
-      content: ReportEncoder.batchCsv(_batchScans, summary: _batchSummary),
+      content: content,
       mimeType: 'text/csv',
       subject: 'TagVerity batch scan report',
     );
+  }
+
+  String? _prepareExport(String label, String Function() encode) {
+    try {
+      return encode();
+    } on Object catch (error) {
+      _setError(
+        'Could not prepare $label: ${ErrorText.clean(error)}',
+        code: 'export.encode.failed',
+        data: <String, Object?>{'label': label},
+      );
+      return null;
+    }
   }
 
   Future<void> _shareTextFile({

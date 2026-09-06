@@ -604,7 +604,7 @@ NfcScan _scan({String id = 'scan-1'}) {
     platform: 'android',
     uidHex: '04:AA:BB:CC',
     uidFingerprint:
-        '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+        '732f6986a0dc9a440072e6868883900086befc53f156041f3778bb763a3dbd95',
     identityStability: TagIdentityStability.stable,
     technologies: const <String>['NfcA'],
     details: const <String, String>{

@@ -9,6 +9,7 @@ import '../../domain/models/tag_fact_catalog.dart';
 import '../../domain/models/tag_identity_stability.dart';
 import '../../domain/repositories/scan_history_repository.dart';
 import '../../domain/services/history_privacy.dart';
+import '../../domain/services/scan_contract.dart';
 
 final class SharedPreferencesScanHistoryRepository
     implements ScanHistoryRepository {
@@ -20,10 +21,6 @@ final class SharedPreferencesScanHistoryRepository
   static const String _legacySettingsKey = 'nfc_inspector.settings.v1';
   // Early TagVerity releases allowed up to 500 local history records.
   static const int _maximumCompatibleHistoryRecords = 500;
-  static final RegExp _fingerprintPattern = RegExp(r'^[0-9a-f]{64}$');
-  static final RegExp _colonHexPattern = RegExp(
-    r'^(?:[0-9A-Fa-f]{2}(?::[0-9A-Fa-f]{2})*)?$',
-  );
   static const Set<String> _scanFields = <String>{
     'id',
     'scannedAt',
@@ -137,6 +134,7 @@ final class SharedPreferencesScanHistoryRepository
           identityStability: HistoryPrivacy.inferEarlyV2IdentityStability(scan),
         );
       }
+      ScanContract.validate(scan);
       if (!scanIds.add(scan.id)) {
         throw const FormatException(
           'Saved scan history contains duplicate scan IDs.',
@@ -171,32 +169,21 @@ final class SharedPreferencesScanHistoryRepository
         json.keys.any((String key) => !_scanFields.contains(key)) ||
         !json.containsKey('uidHex') ||
         id is! String ||
-        id.isEmpty ||
         scannedAt is! String ||
         DateTime.tryParse(scannedAt) == null ||
         platform is! String ||
-        platform.isEmpty ||
-        (uidHex != null &&
-            (uidHex is! String ||
-                HistoryPrivacy.comparableFingerprintFromUidHex(uidHex) ==
-                    null)) ||
+        (uidHex != null && uidHex is! String) ||
         fingerprint is! String ||
-        !_fingerprintPattern.hasMatch(fingerprint) ||
         invalidIdentity ||
         technologies is! List<dynamic> ||
         technologies.any((Object? item) => item is! String) ||
-        technologies.toSet().length != technologies.length ||
         details is! Map<String, dynamic> ||
         details.values.any((Object? value) => value is! String) ||
         records is! List<dynamic> ||
         records.any(
           (Object? record) =>
               record is! Map<String, dynamic> ||
-              !_isValidNdefRecordJson(record),
-        ) ||
-        records.asMap().entries.any(
-          (MapEntry<int, dynamic> entry) =>
-              (entry.value as Map<String, dynamic>)['index'] != entry.key,
+              !_isValidNdefRecordShape(record),
         ) ||
         warnings is! List<dynamic> ||
         warnings.any((Object? item) => item is! String);
@@ -208,39 +195,19 @@ final class SharedPreferencesScanHistoryRepository
     }
   }
 
-  bool _isValidNdefRecordJson(Map<String, dynamic> json) {
+  bool _isValidNdefRecordShape(Map<String, dynamic> json) {
     if (json.keys.any((String key) => !_ndefRecordFields.contains(key))) {
       return false;
     }
-    final Object? index = json['index'];
-    final Object? typeNameFormat = json['typeNameFormat'];
-    final Object? type = json['type'];
-    final Object? identifierHex = json['identifierHex'];
-    final Object? payloadLength = json['payloadLength'];
-    final Object? byteLength = json['byteLength'];
-    final Object? summary = json['summary'];
-    final Object? payloadPreviewHex = json['payloadPreviewHex'];
-    if (index is! int ||
-        index < 0 ||
-        typeNameFormat is! String ||
-        type is! String ||
-        identifierHex is! String ||
-        !_colonHexPattern.hasMatch(identifierHex) ||
-        payloadLength is! int ||
-        payloadLength < 0 ||
-        byteLength is! int ||
-        byteLength < payloadLength ||
-        summary is! String ||
-        payloadPreviewHex is! String ||
-        !_colonHexPattern.hasMatch(payloadPreviewHex)) {
-      return false;
-    }
-    final int expectedPreviewBytes = payloadLength < 64 ? payloadLength : 64;
-    return _hexByteCount(payloadPreviewHex) == expectedPreviewBytes;
+    return json['index'] is int &&
+        json['typeNameFormat'] is String &&
+        json['type'] is String &&
+        json['identifierHex'] is String &&
+        json['payloadLength'] is int &&
+        json['byteLength'] is int &&
+        json['summary'] is String &&
+        json['payloadPreviewHex'] is String;
   }
-
-  int _hexByteCount(String value) =>
-      value.isEmpty ? 0 : value.split(':').length;
 
   void _validateHistoryForSave(List<NfcScan> scans) {
     if (scans.length > _maximumCompatibleHistoryRecords) {
@@ -249,6 +216,7 @@ final class SharedPreferencesScanHistoryRepository
     final Set<String> scanIds = <String>{};
     for (final NfcScan scan in scans) {
       _validateScanJson(scan.toJson());
+      ScanContract.validate(scan);
       if (!scanIds.add(scan.id)) {
         throw const FormatException(
           'Scan history cannot be saved with duplicate scan IDs.',
