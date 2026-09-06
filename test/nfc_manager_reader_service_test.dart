@@ -115,26 +115,129 @@ void main() {
     expect(manager.stopCalls, 0);
   });
 
-  test('native session close is bounded when the platform hangs', () async {
-    final _FakeNfcManager manager = _FakeNfcManager()
-      ..stopCompleter = Completer<void>();
-    final NfcManagerReaderService service = NfcManagerReaderService(
-      manager: manager,
-      scanTimeout: const Duration(seconds: 1),
-      sessionCloseTimeout: const Duration(milliseconds: 100),
-      tagInspector: (NfcTag tag, ScanSettings settings) async => _scan(),
-    );
+  test(
+    'unconfirmed close suppresses scan success and automatic rearm',
+    () async {
+      final _FakeNfcManager manager = _FakeNfcManager()
+        ..stopCompleter = Completer<void>();
+      final List<NfcScan> scans = <NfcScan>[];
+      final List<String> errors = <String>[];
+      final NfcManagerReaderService service = NfcManagerReaderService(
+        manager: manager,
+        scanTimeout: const Duration(seconds: 1),
+        sessionCloseTimeout: const Duration(milliseconds: 100),
+        tagInspector: (NfcTag tag, ScanSettings settings) async => _scan(),
+      );
 
-    await service.startScan(
-      settings: const ScanSettings(),
-      onScan: (NfcScan scan) async {},
-      onError: (String message) {},
-    );
-    await service.stopScan().timeout(const Duration(seconds: 1));
+      await service.startScan(
+        settings: const ScanSettings(),
+        onScan: (NfcScan scan) async => scans.add(scan),
+        onError: errors.add,
+      );
+      manager.discover();
+      await Future<void>.delayed(const Duration(milliseconds: 180));
 
-    expect(manager.stopCalls, 1);
-    manager.stopCompleter!.complete();
-  });
+      expect(scans, isEmpty);
+      expect(errors, hasLength(1));
+      expect(errors.single, contains('still closing'));
+      expect(manager.startCalls, 1);
+      expect(manager.stopCalls, 1);
+
+      await expectLater(
+        service.startScan(
+          settings: const ScanSettings(),
+          onScan: (NfcScan scan) async {},
+          onError: (String message) {},
+        ),
+        throwsA(isA<StateError>()),
+      );
+      expect(manager.startCalls, 1);
+
+      manager.stopCompleter!.complete();
+      await Future<void>.delayed(Duration.zero);
+    },
+  );
+
+  test(
+    'unconfirmed native close is bounded and blocks a replacement session',
+    () async {
+      final _FakeNfcManager manager = _FakeNfcManager()
+        ..stopCompleter = Completer<void>();
+      final NfcManagerReaderService service = NfcManagerReaderService(
+        manager: manager,
+        scanTimeout: const Duration(seconds: 1),
+        sessionCloseTimeout: const Duration(milliseconds: 100),
+        tagInspector: (NfcTag tag, ScanSettings settings) async => _scan(),
+      );
+
+      await service.startScan(
+        settings: const ScanSettings(),
+        onScan: (NfcScan scan) async {},
+        onError: (String message) {},
+      );
+      await expectLater(
+        service.stopScan().timeout(const Duration(seconds: 1)),
+        throwsA(
+          isA<StateError>().having(
+            (StateError error) => error.message,
+            'message',
+            contains('still closing'),
+          ),
+        ),
+      );
+      expect(manager.stopCalls, 1);
+
+      await expectLater(
+        service.startScan(
+          settings: const ScanSettings(),
+          onScan: (NfcScan scan) async {},
+          onError: (String message) {},
+        ),
+        throwsA(isA<StateError>()),
+      );
+      expect(manager.startCalls, 1);
+
+      manager.stopCompleter!.complete();
+      await Future<void>.delayed(Duration.zero);
+      manager.stopCompleter = null;
+      await service.startScan(
+        settings: const ScanSettings(),
+        onScan: (NfcScan scan) async {},
+        onError: (String message) {},
+      );
+      expect(manager.startCalls, 2);
+      await service.stopScan();
+    },
+  );
+
+  test(
+    'synchronous native close errors are treated as already invalidated',
+    () async {
+      final _FakeNfcManager manager = _FakeNfcManager()..throwOnStop = true;
+      final NfcManagerReaderService service = NfcManagerReaderService(
+        manager: manager,
+        scanTimeout: const Duration(seconds: 1),
+        tagInspector: (NfcTag tag, ScanSettings settings) async => _scan(),
+      );
+
+      await service.startScan(
+        settings: const ScanSettings(),
+        onScan: (NfcScan scan) async {},
+        onError: (String message) {},
+      );
+      await service.stopScan();
+      expect(manager.stopCalls, 1);
+
+      manager.throwOnStop = false;
+      await service.startScan(
+        settings: const ScanSettings(),
+        onScan: (NfcScan scan) async {},
+        onError: (String message) {},
+      );
+      expect(manager.startCalls, 2);
+      await service.stopScan();
+    },
+  );
 
   test(
     'explicit stop suppresses timeout and late inspection delivery',
@@ -146,7 +249,7 @@ void main() {
       final List<String> errors = <String>[];
       final NfcManagerReaderService service = NfcManagerReaderService(
         manager: manager,
-        scanTimeout: const Duration(milliseconds: 20),
+        scanTimeout: const Duration(milliseconds: 100),
         tagInspector: (NfcTag tag, ScanSettings settings) {
           inspectionStarted.complete();
           return inspection.future;
@@ -193,6 +296,7 @@ final class _FakeNfcManager extends NfcManager {
   int startCalls = 0;
   int stopCalls = 0;
   Completer<void>? stopCompleter;
+  bool throwOnStop = false;
 
   @override
   Future<bool> isAvailable() async => true;
@@ -215,15 +319,13 @@ final class _FakeNfcManager extends NfcManager {
   }
 
   @override
-  Future<void> stopSession({
-    String? alertMessageIos,
-    String? errorMessageIos,
-  }) async {
+  Future<void> stopSession({String? alertMessageIos, String? errorMessageIos}) {
     stopCalls += 1;
-    final Completer<void>? pending = stopCompleter;
-    if (pending != null) {
-      await pending.future;
+    if (throwOnStop) {
+      throw StateError('simulated synchronous close failure');
     }
+    final Completer<void>? pending = stopCompleter;
+    return pending?.future ?? Future<void>.value();
   }
 
   void discover() {

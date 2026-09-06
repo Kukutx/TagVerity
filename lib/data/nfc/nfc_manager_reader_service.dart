@@ -50,6 +50,7 @@ final class NfcManagerReaderService implements NfcReaderService {
   bool _discoveryClaimed = false;
   bool _terminalCallbackDelivered = false;
   Timer? _timeoutTimer;
+  Future<void>? _pendingNativeClose;
   bool _isActiveSession(int generation) =>
       _activeSessionGeneration == generation;
   @override
@@ -78,8 +79,10 @@ final class NfcManagerReaderService implements NfcReaderService {
     required ScanResultCallback onScan,
     required ScanErrorCallback onError,
   }) async {
+    _ensureNoPendingNativeClose();
     if (_activeSessionGeneration != null) {
       await stopScan();
+      _ensureNoPendingNativeClose();
     }
     _sessionGeneration += 1;
     final int generation = _sessionGeneration;
@@ -126,6 +129,10 @@ final class NfcManagerReaderService implements NfcReaderService {
               alertMessageIos: 'Tag read successfully',
             );
             if (!closed) {
+              onError(
+                'Tag was read, but the NFC reader session is still closing. '
+                'Try again shortly.',
+              );
               return;
             }
             await onScan(scan);
@@ -140,10 +147,14 @@ final class NfcManagerReaderService implements NfcReaderService {
               generation,
               errorMessageIos: 'Tag read failed',
             );
-            if (!closed) {
-              return;
-            }
-            onError('Could not inspect this tag: ${ErrorText.clean(error)}');
+            final String message =
+                'Could not inspect this tag: ${ErrorText.clean(error)}';
+            onError(
+              closed
+                  ? message
+                  : '$message The NFC reader session is still closing; '
+                        'try again shortly.',
+            );
           }
         },
       );
@@ -173,12 +184,14 @@ final class NfcManagerReaderService implements NfcReaderService {
       generation,
       errorMessageIos: 'Scan timed out',
     );
-    if (!closed) {
-      return;
-    }
+    final String message =
+        'Scan timed out after ${AppConstants.defaultScanTimeoutSeconds} seconds. '
+        'Move the tag and try again.';
     onError(
-      'Scan timed out after ${AppConstants.defaultScanTimeoutSeconds} seconds. '
-      'Move the tag and try again.',
+      closed
+          ? message
+          : '$message The NFC reader session is still closing; '
+                'try again shortly.',
     );
   }
 
@@ -191,7 +204,12 @@ final class NfcManagerReaderService implements NfcReaderService {
     if (generation == null) {
       return;
     }
-    await _closeSession(generation);
+    final bool closed = await _closeSession(generation);
+    if (!closed) {
+      throw StateError(
+        'The NFC reader session is still closing. Try again shortly.',
+      );
+    }
   }
 
   Future<bool> _closeSession(
@@ -205,17 +223,50 @@ final class NfcManagerReaderService implements NfcReaderService {
     // Invalidate before awaiting the native close. A stale discovery callback
     // can therefore never stop or report a newer reader session.
     _invalidateSessionState(generation);
+    late final Future<void> closeFuture;
     try {
-      await _manager
-          .stopSession(
-            alertMessageIos: alertMessageIos,
-            errorMessageIos: errorMessageIos,
-          )
-          .timeout(_sessionCloseTimeout);
+      closeFuture = _manager.stopSession(
+        alertMessageIos: alertMessageIos,
+        errorMessageIos: errorMessageIos,
+      );
     } on Object {
       // The OS may already have invalidated the NFC session.
+      return true;
     }
-    return true;
+    _pendingNativeClose = closeFuture;
+    unawaited(
+      closeFuture.then<void>(
+        (_) => _clearPendingNativeClose(closeFuture),
+        onError: (Object _, StackTrace _) {
+          _clearPendingNativeClose(closeFuture);
+        },
+      ),
+    );
+    try {
+      await closeFuture.timeout(_sessionCloseTimeout);
+      _clearPendingNativeClose(closeFuture);
+      return true;
+    } on TimeoutException {
+      return false;
+    } on Object {
+      // The OS may already have invalidated the NFC session.
+      _clearPendingNativeClose(closeFuture);
+      return true;
+    }
+  }
+
+  void _ensureNoPendingNativeClose() {
+    if (_pendingNativeClose != null) {
+      throw StateError(
+        'The previous NFC reader session is still closing. Try again shortly.',
+      );
+    }
+  }
+
+  void _clearPendingNativeClose(Future<void> closeFuture) {
+    if (identical(_pendingNativeClose, closeFuture)) {
+      _pendingNativeClose = null;
+    }
   }
 
   void _invalidateSessionState(int generation) {
