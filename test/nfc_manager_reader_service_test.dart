@@ -5,11 +5,54 @@ import 'package:nfc_manager/nfc_manager.dart';
 import 'package:nfc_manager/nfc_manager_ios.dart';
 import 'package:tagverity/data/nfc/nfc_manager_reader_service.dart';
 import 'package:tagverity/domain/models/nfc_scan.dart';
+import 'package:tagverity/domain/models/nfc_support_status.dart';
 import 'package:tagverity/domain/models/scan_settings.dart';
 import 'package:tagverity/domain/models/tag_identity_stability.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  test(
+    'availability maps native states and propagates platform failures',
+    () async {
+      final _FakeNfcManager manager = _FakeNfcManager();
+      final NfcManagerReaderService service = NfcManagerReaderService(
+        manager: manager,
+      );
+
+      expect(await service.checkAvailability(), NfcSupportStatus.enabled);
+      manager.availability = NfcAvailability.disabled;
+      expect(await service.checkAvailability(), NfcSupportStatus.disabled);
+      manager.availability = NfcAvailability.unsupported;
+      expect(await service.checkAvailability(), NfcSupportStatus.unsupported);
+
+      manager.availabilityError = StateError('native availability failed');
+      await expectLater(
+        service.checkAvailability(),
+        throwsA(
+          isA<StateError>().having(
+            (StateError error) => error.message,
+            'message',
+            contains('native availability failed'),
+          ),
+        ),
+      );
+    },
+  );
+
+  test('availability timeout propagates to the controller boundary', () async {
+    final _FakeNfcManager manager = _FakeNfcManager()
+      ..availabilityFuture = Completer<NfcAvailability>().future;
+    final NfcManagerReaderService service = NfcManagerReaderService(
+      manager: manager,
+      availabilityCheckTimeout: const Duration(milliseconds: 100),
+    );
+
+    await expectLater(
+      service.checkAvailability(),
+      throwsA(isA<TimeoutException>()),
+    );
+  });
 
   test('native session start timeout blocks replacement until late cleanup settles', () async {
     final _FakeNfcManager manager = _FakeNfcManager()
@@ -520,12 +563,21 @@ final class _FakeNfcManager extends NfcManager {
   Completer<void>? stopCompleter;
   bool throwOnStart = false;
   bool throwOnStop = false;
+  NfcAvailability availability = NfcAvailability.enabled;
+  Future<NfcAvailability>? availabilityFuture;
+  Object? availabilityError;
 
   @override
   Future<bool> isAvailable() async => true;
 
   @override
-  Future<NfcAvailability> checkAvailability() async => NfcAvailability.enabled;
+  Future<NfcAvailability> checkAvailability() {
+    final Object? error = availabilityError;
+    if (error != null) {
+      return Future<NfcAvailability>.error(error);
+    }
+    return availabilityFuture ?? Future<NfcAvailability>.value(availability);
+  }
 
   @override
   Future<void> startSession({
