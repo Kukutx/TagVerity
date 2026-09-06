@@ -36,6 +36,24 @@ void main() {
     );
     controller.dispose();
   });
+  test('reader errors are bounded before reaching the global banner', () async {
+    final _Reader reader = _Reader(
+      scanError: 'native\nerror\t${'x' * 700}\u0000tail',
+    );
+    final NfcScanController controller = _controller(reader: reader);
+    await controller.initialize();
+    await controller.startScan();
+
+    final String message = controller.errorMessage!;
+    expect(message.runes.length, 500);
+    expect(message, startsWith('native error '));
+    expect(message, isNot(contains('\n')));
+    expect(message, isNot(contains('\t')));
+    expect(message, endsWith('…'));
+    expect(controller.diagnosticEvents.last.message, message);
+    controller.dispose();
+  });
+
   test('share failures surface as global controller error', () async {
     final NfcScanController controller = NfcScanController(
       readerService: _Reader(scan: _scan()),

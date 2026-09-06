@@ -14,7 +14,7 @@
 - Default saved history no longer retains a comparable tag fingerprint when neither raw UID nor technical identifiers are retained; it keeps the scan event ID but replaces tag identity with a session-only per-scan fingerprint. Raw UID opt-in keeps the matching SHA-256 fingerprint/comparable identity so the saved identity fields remain consistent.
 - Legacy pre-TagVerity history now replaces UID-derived stable fingerprints during migration instead of briefly carrying them into the current history key.
 - NFC-F manufacturer/PMm-style metadata is now treated as linkable technical data and removed from privacy-minimized history.
-- Persisted history validation now enforces SHA-256 fingerprint shape, byte-formatted raw UIDs, unique technologies/scan IDs, sequential NDEF indexes, strict NDEF identifier/preview hex, preview-length and payload-vs-record-length consistency, and known scan/NDEF top-level fields on load; the same validation runs before saving so malformed outgoing history cannot replace a known-good copy. Early v2 history without `identityStability` remains supported.
+- Persisted history validation now enforces SHA-256 fingerprint shape, byte-formatted raw UIDs, unique technologies/scan IDs, sequential NDEF indexes, strict NDEF identifier/preview hex, preview-length and payload-vs-record-length consistency, known scan/NDEF top-level fields, and the legacy-compatible 500-record ceiling; the same validation runs before saving so malformed outgoing history cannot replace a known-good copy. Early pre-identity v2 fingerprints recover their original stable-vs-session-only meaning before current privacy settings are reapplied.
 - Legacy scan IDs that embedded the first 12 hexadecimal characters of a UID-derived fingerprint are replaced with privacy-safe event IDs during migration/startup cleanup.
 - Legacy warning strings and malformed-JSON errors no longer carry raw platform or persisted payload text into saved history/global diagnostics.
 - Once the current history key is authoritative, the stale legacy history key is overwritten with an empty value before deletion so a failed remove cannot strand raw UID/NDEF data; legacy settings cleanup is best-effort after the current settings copy is committed, so a failed old-key removal cannot make migrated settings appear to fail.
@@ -23,7 +23,7 @@
 - Added latest-request-wins guards for overlapping NFC availability refreshes so stale results cannot overwrite newer state, return stale gate decisions to callers, or emit stale failure diagnostics.
 - Added startup privacy enforcement so previously retained sensitive history is hidden immediately and rewritten to match current settings.
 - Added standard NFC Forum Type 4 / NDEF AID `D2760000850101` for iOS without claiming arbitrary ISO 7816 application discovery.
-- Added recursive diagnostics sanitization, clean platform-error text, NFC availability timeout/failure handling, and false-success protection for clipboard copies.
+- Added recursive diagnostics sanitization, bounded/normalized platform-error text (500 Unicode characters with control/whitespace cleanup), NFC availability timeout/failure handling, and false-success protection for clipboard copies.
 - Bounded individual diagnostic strings, collections, and nesting depth so malformed runtime data cannot inflate troubleshooting exports.
 - Fixed a narrow-screen / large-text `SectionCard` overflow found by a 320px + 200% text-scale stress test.
 - Added per-process scan sequencing to event IDs to avoid timestamp-collision keys.

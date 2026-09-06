@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 
 import '../models/nfc_scan.dart';
+import '../models/tag_identity_stability.dart';
 
 abstract final class HistoryPrivacy {
   static final RegExp _legacyLinkableEventId = RegExp(r'^\d+-[0-9a-fA-F]{12}$');
@@ -20,6 +21,20 @@ abstract final class HistoryPrivacy {
         ? 'migrated'
         : 'migrated-${ordinal + 1}';
     return 'scan-$timestamp-$suffix';
+  }
+
+  static TagIdentityStability inferEarlyV2IdentityStability(NfcScan scan) {
+    final String legacySessionFingerprint = sha256
+        .convert(
+          utf8.encode(
+            '${scan.platform}|${scan.technologies.join('|')}|'
+            '${scan.scannedAt.toUtc().microsecondsSinceEpoch}',
+          ),
+        )
+        .toString();
+    return scan.uidFingerprint == legacySessionFingerprint
+        ? TagIdentityStability.sessionOnly
+        : TagIdentityStability.stable;
   }
 
   static String? comparableFingerprintFromUidHex(String? uidHex) {
