@@ -818,6 +818,39 @@ final class NfcScanController extends ChangeNotifier
     );
   }
 
+  Future<bool> deleteSavedHistoryDuringPrivacyRecovery() async {
+    if (_disposed || !_historyLoadDeferredForSettings) {
+      return false;
+    }
+    if (settingsBusy || historyBusy) {
+      _setError(
+        'Wait for the pending local update before deleting saved history.',
+        code: 'storage.history.recovery.delete.busy',
+        level: AppDiagnosticLevel.warning,
+      );
+      return false;
+    }
+    try {
+      await _enqueueHistoryMutation(() async {
+        await _repository.clearHistory();
+        _history = const <NfcScan>[];
+      });
+      _setError(
+        'Saved history was deleted. Apply the current privacy settings '
+        'before scanning.',
+        code: 'storage.history.recovery.deleted',
+        level: AppDiagnosticLevel.warning,
+      );
+      return true;
+    } on Object catch (error) {
+      _setError(
+        'Could not delete saved history: ${ErrorText.clean(error)}',
+        code: 'storage.history.recovery.delete.failed',
+      );
+      return false;
+    }
+  }
+
   bool _requireHistoryRecovered(String action) {
     if (!_historyLoadDeferredForSettings) {
       return true;
