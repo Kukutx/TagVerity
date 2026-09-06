@@ -28,8 +28,8 @@ Verified on the maintainer machine without launching an emulator:
 - `dart run tool/validate_project.dart`: passed.
 - strict maintainer bootstrap with `--strict-sdk --single-sdk`: passed against Flutter 3.47.1 / Dart 3.13.1.
 - `flutter analyze`: **0 issues**.
-- `flutter test --coverage`: **116/116 tests passed**.
-- Line coverage: **78.8% (1442/1830)**, above the enforced **75%** floor. Coverage growth is concentrated in controller concurrency, local persistence, privacy, accessibility, diagnostics, report encoding, and detail UI rather than generated/platform code.
+- `flutter test --coverage`: **122/122 tests passed**.
+- Line coverage: **79.2% (1455/1838)**, above the enforced **75%** floor. Coverage growth is concentrated in controller concurrency, local persistence, privacy, accessibility, diagnostics, report encoding, and detail UI rather than generated/platform code.
 - Widget coverage includes four-tab navigation, global error visibility, sensitive-setting confirmation, dark mode, **all four core tabs at 320px + 200% text scaling**, populated Inspect/Batch/History results at the same stress size, and a full Tag Details stress pass with technical/NDEF expansion.
 - Android debug APK compilation: passed.
 - Android debug AAB compilation with `android-arm,android-arm64`: passed.
@@ -59,6 +59,7 @@ The current direct dependencies are already at their latest resolvable versions.
 - Serialized history persistence across scan-save/delete/clear/scrub/privacy rewrites, including recovery after a failed queued write and deterministic behavior under concurrent user actions.
 - Privacy-first sensitive-setting changes: the stricter setting commits first, sensitive history is hidden in memory immediately, disk rewrites are serialized, and startup reapplies/retries the current privacy policy if a previous rewrite was incomplete.
 - Corrupted persisted history/settings are reported instead of silently becoming empty/default data.
+- Legacy settings cleanup is best-effort only after the current settings copy is committed; failure to remove the obsolete key no longer makes migrated/current settings load fail, and the stale key is first reduced to `{}` when possible.
 - Searchable local history.
 - Privacy-minimized history defaults and privacy-safe legacy migration, including replacement of legacy UID-derived fingerprints with session-only history fingerprints and replacement of early event IDs that embedded a fingerprint prefix.
 - Raw UID retention keeps the matching SHA-256 comparable fingerprint and `stable` identity semantics; startup repairs older saved records that retained a raw UID with session-only identity metadata, and disabling raw UID retention scrubs the comparable fingerprint again unless technical-identifier retention remains enabled.
@@ -66,7 +67,7 @@ The current direct dependencies are already at their latest resolvable versions.
 - Technical metadata retention is allowlist-based in both default and opt-in modes: opt-in adds only cataloged linkable keys, and unknown/future detail keys remain excluded and are scrubbed on startup.
 - After current history becomes authoritative, the stale legacy history key is blanked before deletion is attempted so a failed remove cannot strand raw UID/NDEF data.
 - NFC-F manufacturer/PMm-style metadata is treated as linkable technical data and scrubbed when technical-identifier retention is disabled.
-- Persisted history rejects schema-incompatible fingerprints, malformed raw UIDs, duplicate technology entries, duplicate scan IDs, and duplicate NDEF record indexes; outgoing history is validated before it can replace the stored copy.
+- Persisted history rejects schema-incompatible fingerprints, malformed raw UIDs, duplicate technology entries, duplicate scan IDs, duplicate NDEF record indexes, and unknown scan/NDEF top-level fields; outgoing history is validated before it can replace the stored copy. Early current-v2 records without `identityStability` remain compatible.
 - Scan/history JSON export schema **v3**.
 - Diagnostics export schema **v3**.
 - Native Android/iOS report sharing with failure reporting and 24-hour stale TagVerity temp-export cleanup; iOS exports use a TagVerity-specific temporary subdirectory.

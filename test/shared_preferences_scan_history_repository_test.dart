@@ -294,6 +294,58 @@ void main() {
       },
     );
 
+    test('unknown persisted scan fields are rejected', () async {
+      final Map<String, Object?> json = _scan().toJson();
+      json['futureTopLevelField'] = 'must not be silently dropped';
+      final store = InMemorySharedPreferencesAsync.withData(<String, Object>{
+        'tagverity.history.v2': jsonEncode(<Object?>[json]),
+      });
+      SharedPreferencesAsyncPlatform.instance = store;
+      final repository = SharedPreferencesScanHistoryRepository(
+        preferences: SharedPreferencesAsync(),
+      );
+
+      await expectLater(repository.loadHistory(), throwsFormatException);
+    });
+
+    test('unknown persisted NDEF record fields are rejected', () async {
+      final Map<String, Object?> json = _scan().toJson();
+      final List<dynamic> records = json['ndefRecords']! as List<dynamic>;
+      final Map<String, Object?> record = Map<String, Object?>.from(
+        records.single as Map,
+      );
+      record['futureRecordField'] = 'unknown';
+      json['ndefRecords'] = <Object?>[record];
+      final store = InMemorySharedPreferencesAsync.withData(<String, Object>{
+        'tagverity.history.v2': jsonEncode(<Object?>[json]),
+      });
+      SharedPreferencesAsyncPlatform.instance = store;
+      final repository = SharedPreferencesScanHistoryRepository(
+        preferences: SharedPreferencesAsync(),
+      );
+
+      await expectLater(repository.loadHistory(), throwsFormatException);
+    });
+
+    test(
+      'early current v2 history without identity stability still loads',
+      () async {
+        final Map<String, Object?> json = _scan().toJson();
+        json.remove('identityStability');
+        final store = InMemorySharedPreferencesAsync.withData(<String, Object>{
+          'tagverity.history.v2': jsonEncode(<Object?>[json]),
+        });
+        SharedPreferencesAsyncPlatform.instance = store;
+        final repository = SharedPreferencesScanHistoryRepository(
+          preferences: SharedPreferencesAsync(),
+        );
+
+        final List<NfcScan> history = await repository.loadHistory();
+        expect(history, hasLength(1));
+        expect(history.single.identityStability, TagIdentityStability.unknown);
+      },
+    );
+
     test('duplicate persisted technologies are rejected', () async {
       final Map<String, Object?> json = _scan().toJson();
       json['technologies'] = <Object?>['NfcA', 'NfcA'];
@@ -350,6 +402,77 @@ void main() {
         await expectLater(repository.loadSettings(), throwsFormatException);
       },
     );
+
+    test('legacy settings migration survives a failed key removal', () async {
+      final store = _FailLegacySettingsClearStore(<String, Object>{
+        'nfc_inspector.settings.v1': jsonEncode(<String, Object?>{
+          'readNdef': false,
+          'saveRawUidInHistory': true,
+          'saveNdefInHistory': false,
+          'saveTechnicalIdentifiersInHistory': false,
+          'platformSounds': false,
+          'historyLimit': 500,
+        }),
+      });
+      SharedPreferencesAsyncPlatform.instance = store;
+      final prefs = SharedPreferencesAsync();
+      final repository = SharedPreferencesScanHistoryRepository(
+        preferences: prefs,
+      );
+
+      final ScanSettings settings = await repository.loadSettings();
+
+      expect(settings.readNdef, isFalse);
+      expect(settings.saveRawUidInHistory, isTrue);
+      expect(await prefs.getString('tagverity.settings.v2'), isNotNull);
+      expect(await prefs.getString('nfc_inspector.settings.v1'), '{}');
+    });
+
+    test(
+      'current settings load ignores stale legacy cleanup failure',
+      () async {
+        final store = _FailLegacySettingsClearStore(<String, Object>{
+          'tagverity.settings.v2': jsonEncode(
+            const ScanSettings(readNdef: false).toJson(),
+          ),
+          'nfc_inspector.settings.v1': jsonEncode(
+            const ScanSettings(saveRawUidInHistory: true).toJson(),
+          ),
+        });
+        SharedPreferencesAsyncPlatform.instance = store;
+        final prefs = SharedPreferencesAsync();
+        final repository = SharedPreferencesScanHistoryRepository(
+          preferences: prefs,
+        );
+
+        final ScanSettings settings = await repository.loadSettings();
+
+        expect(settings.readNdef, isFalse);
+        expect(settings.saveRawUidInHistory, isFalse);
+        expect(await prefs.getString('nfc_inspector.settings.v1'), '{}');
+      },
+    );
+
+    test('early current v2 settings with removed fields still load', () async {
+      final Map<String, Object?> json = <String, Object?>{
+        ...const ScanSettings(readNdef: false).toJson(),
+        'platformSounds': false,
+        'showAdvancedFields': true,
+        'scanTimeoutSeconds': 15,
+        'historyLimit': 500,
+      };
+      final store = InMemorySharedPreferencesAsync.withData(<String, Object>{
+        'tagverity.settings.v2': jsonEncode(json),
+      });
+      SharedPreferencesAsyncPlatform.instance = store;
+      final repository = SharedPreferencesScanHistoryRepository(
+        preferences: SharedPreferencesAsync(),
+      );
+
+      final ScanSettings settings = await repository.loadSettings();
+
+      expect(settings.readNdef, isFalse);
+    });
 
     test('wrong setting value types are rejected', () async {
       final store = InMemorySharedPreferencesAsync.withData(<String, Object>{
@@ -442,6 +565,23 @@ final class _FailLegacyHistoryClearStore
     if (parameters.filter.allowList?.contains('nfc_inspector.history.v1') ??
         false) {
       throw StateError('simulated legacy-history remove failure');
+    }
+    return super.clear(parameters, options);
+  }
+}
+
+final class _FailLegacySettingsClearStore
+    extends InMemorySharedPreferencesAsync {
+  _FailLegacySettingsClearStore(super.data) : super.withData();
+
+  @override
+  Future<bool> clear(
+    ClearPreferencesParameters parameters,
+    SharedPreferencesOptions options,
+  ) async {
+    if (parameters.filter.allowList?.contains('nfc_inspector.settings.v1') ??
+        false) {
+      throw StateError('simulated legacy-settings remove failure');
     }
     return super.clear(parameters, options);
   }
