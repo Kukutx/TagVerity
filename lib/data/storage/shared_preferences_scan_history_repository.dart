@@ -91,6 +91,7 @@ final class SharedPreferencesScanHistoryRepository
       throw const FormatException('Saved scan history has an invalid shape.');
     }
     final List<NfcScan> scans = <NfcScan>[];
+    final Set<String> scanIds = <String>{};
     for (final Object? item in decoded) {
       if (item is! Map<String, dynamic>) {
         throw const FormatException(
@@ -98,7 +99,13 @@ final class SharedPreferencesScanHistoryRepository
         );
       }
       _validateScanJson(item);
-      scans.add(NfcScan.fromJson(item));
+      final NfcScan scan = NfcScan.fromJson(item);
+      if (!scanIds.add(scan.id)) {
+        throw const FormatException(
+          'Saved scan history contains duplicate scan IDs.',
+        );
+      }
+      scans.add(scan);
     }
     return List<NfcScan>.unmodifiable(scans);
   }
@@ -130,7 +137,10 @@ final class SharedPreferencesScanHistoryRepository
         DateTime.tryParse(scannedAt) == null ||
         platform is! String ||
         platform.isEmpty ||
-        (uidHex != null && uidHex is! String) ||
+        (uidHex != null &&
+            (uidHex is! String ||
+                HistoryPrivacy.comparableFingerprintFromUidHex(uidHex) ==
+                    null)) ||
         fingerprint is! String ||
         !_fingerprintPattern.hasMatch(fingerprint) ||
         invalidIdentity ||
@@ -145,6 +155,14 @@ final class SharedPreferencesScanHistoryRepository
               record is! Map<String, dynamic> ||
               !_isValidNdefRecordJson(record),
         ) ||
+        records
+                .map(
+                  (Object? record) =>
+                      (record as Map<String, dynamic>)['index'] as int,
+                )
+                .toSet()
+                .length !=
+            records.length ||
         warnings is! List<dynamic> ||
         warnings.any((Object? item) => item is! String);
 
@@ -177,8 +195,21 @@ final class SharedPreferencesScanHistoryRepository
         payloadPreviewHex is String;
   }
 
+  void _validateHistoryForSave(List<NfcScan> scans) {
+    final Set<String> scanIds = <String>{};
+    for (final NfcScan scan in scans) {
+      _validateScanJson(scan.toJson());
+      if (!scanIds.add(scan.id)) {
+        throw const FormatException(
+          'Scan history cannot be saved with duplicate scan IDs.',
+        );
+      }
+    }
+  }
+
   @override
   Future<void> saveHistory(List<NfcScan> scans) async {
+    _validateHistoryForSave(scans);
     final String encoded = jsonEncode(
       scans.map((NfcScan scan) => scan.toJson()).toList(growable: false),
     );

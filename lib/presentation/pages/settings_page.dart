@@ -57,7 +57,7 @@ class SettingsPage extends StatelessWidget {
                               context,
                               value: value,
                               title: 'Save raw UID?',
-                              message: 'A raw UID can remain associated with the same physical tag. Enable this only if you need it.',
+                              message: 'A raw UID and its derived comparable fingerprint can remain associated with the same tag. Enable this only if you need them.',
                               update: (ScanSettings current) =>
                                   current.copyWith(saveRawUidInHistory: value),
                             ),

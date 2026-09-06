@@ -26,6 +26,21 @@ void main() {
     expect(HistoryPrivacy.warningsNeedScrub(safe), isFalse);
   });
 
+  test('raw UID fingerprint reconstruction matches scan hashing', () {
+    expect(
+      HistoryPrivacy.comparableFingerprintFromUidHex('04:AA:BB:CC'),
+      '732f6986a0dc9a440072e6868883900086befc53f156041f3778bb763a3dbd95',
+    );
+    expect(
+      HistoryPrivacy.comparableFingerprintFromUidHex('04:aa:bb:cc'),
+      '732f6986a0dc9a440072e6868883900086befc53f156041f3778bb763a3dbd95',
+    );
+    expect(HistoryPrivacy.comparableFingerprintFromUidHex('not-a-uid'), isNull);
+    expect(HistoryPrivacy.comparableFingerprintFromUidHex('04:+A'), isNull);
+    expect(HistoryPrivacy.comparableFingerprintFromUidHex('04:-1'), isNull);
+    expect(HistoryPrivacy.comparableFingerprintFromUidHex(''), isNull);
+  });
+
   test('legacy linkable event IDs are replaced before history retention', () {
     final NfcScan scan = NfcScan(
       id: '1780000000000000-abcdef123456',

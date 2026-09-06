@@ -147,19 +147,23 @@ final class NfcScanController extends ChangeNotifier
     final int requestId = ++_availabilityRequestSeed;
     final NfcSupportStatus previous = _supportStatus;
     late NfcSupportStatus status;
+    String? failure;
     try {
       status = await _readerService.checkAvailability();
     } on Object catch (error) {
       status = NfcSupportStatus.unknown;
+      failure = ErrorText.clean(error);
+    }
+    if (_disposed || requestId != _availabilityRequestSeed) {
+      return _supportStatus;
+    }
+    if (failure != null) {
       _addDiagnostic(
         AppDiagnosticLevel.warning,
         'nfc.availability.check.failed',
         'Could not refresh NFC availability',
-        data: <String, Object?>{'error': ErrorText.clean(error)},
+        data: <String, Object?>{'error': failure},
       );
-    }
-    if (_disposed || requestId != _availabilityRequestSeed) {
-      return status;
     }
     _supportStatus = status;
     if (_supportStatus != previous) {
@@ -510,29 +514,52 @@ final class NfcScanController extends ChangeNotifier
   }
 
   NfcScan _historySafeScan(NfcScan scan, {int? historyOrdinal}) {
-    final bool retainComparableIdentity =
-        _settings.saveTechnicalIdentifiersInHistory;
     final String safeEventId = HistoryPrivacy.safeEventId(
       scan,
       ordinal: historyOrdinal,
     );
+    final identity = _historyIdentity(scan, eventId: safeEventId);
     return scan.copyWith(
       id: safeEventId,
-      uidHex: _settings.saveRawUidInHistory ? scan.uidHex : null,
-      uidFingerprint: retainComparableIdentity
-          ? scan.uidFingerprint
-          : _historySessionFingerprint(scan, eventId: safeEventId),
-      identityStability: retainComparableIdentity
-          ? scan.identityStability
-          : TagIdentityStability.sessionOnly,
+      uidHex: identity.uidHex,
+      uidFingerprint: identity.fingerprint,
+      identityStability: identity.stability,
       details: TagFactCatalog.historyRetainedDetails(
         scan.details,
-        includeLinkable: retainComparableIdentity,
+        includeLinkable: _settings.saveTechnicalIdentifiersInHistory,
       ),
       ndefRecords: _settings.saveNdefInHistory
           ? scan.ndefRecords
           : const <NdefRecordInfo>[],
       warnings: HistoryPrivacy.safeWarnings(scan.warnings),
+    );
+  }
+
+  ({String? uidHex, String fingerprint, TagIdentityStability stability})
+  _historyIdentity(NfcScan scan, {required String eventId}) {
+    final String? retainedUid = _settings.saveRawUidInHistory
+        ? scan.uidHex
+        : null;
+    final String? uidFingerprint =
+        HistoryPrivacy.comparableFingerprintFromUidHex(retainedUid);
+    if (uidFingerprint != null) {
+      return (
+        uidHex: retainedUid,
+        fingerprint: uidFingerprint,
+        stability: TagIdentityStability.stable,
+      );
+    }
+    if (_settings.saveTechnicalIdentifiersInHistory) {
+      return (
+        uidHex: retainedUid,
+        fingerprint: scan.uidFingerprint,
+        stability: scan.identityStability,
+      );
+    }
+    return (
+      uidHex: retainedUid,
+      fingerprint: _historySessionFingerprint(scan, eventId: eventId),
+      stability: TagIdentityStability.sessionOnly,
     );
   }
 
@@ -553,14 +580,13 @@ final class NfcScanController extends ChangeNotifier
       HistoryPrivacy.sessionFingerprint(scan, eventId: eventId);
 
   bool _historyNeedsPrivacyScrub(NfcScan scan) {
-    final bool identityNeedsScrub =
-        !_settings.saveTechnicalIdentifiersInHistory &&
-        (scan.identityStability != TagIdentityStability.sessionOnly ||
-            scan.uidFingerprint != _historySessionFingerprint(scan));
+    final String safeEventId = HistoryPrivacy.safeEventId(scan);
+    final identity = _historyIdentity(scan, eventId: safeEventId);
     return HistoryPrivacy.eventIdNeedsScrub(scan.id) ||
-        (!_settings.saveRawUidInHistory && scan.uidHex != null) ||
+        scan.uidHex != identity.uidHex ||
+        scan.uidFingerprint != identity.fingerprint ||
+        scan.identityStability != identity.stability ||
         (!_settings.saveNdefInHistory && scan.ndefRecords.isNotEmpty) ||
-        identityNeedsScrub ||
         scan.details.keys.any(
           (String key) => !TagFactCatalog.isHistoryRetainable(
             key,

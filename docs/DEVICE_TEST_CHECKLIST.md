@@ -48,6 +48,7 @@ This checklist is the final v1.0 gate that automated tests cannot replace. Softw
 - [ ] Clear batch removes the in-memory result.
 ## History & privacy
 - [ ] New history entries omit raw UID by default.
+- [ ] When raw UID retention is enabled, the saved record also keeps the matching comparable SHA-256 fingerprint and comparable identity status.
 - [ ] New history entries omit NDEF content by default.
 - [ ] Linkable technical fields and the comparable tag fingerprint are removed by default; saved identity is session-only.
 - [ ] Enabling each sensitive retention setting works only after confirmation.
