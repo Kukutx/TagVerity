@@ -728,7 +728,16 @@ final class NfcScanController extends ChangeNotifier
         return false;
       }
     }
-    _errorMessage = null;
+    if (_historyLoadDeferredForSettings) {
+      _setError(
+        'Privacy settings updated. Saved history is still hidden; apply the '
+        'current privacy settings to saved history before scanning.',
+        code: 'storage.history.recovery_required',
+        level: AppDiagnosticLevel.warning,
+      );
+    } else {
+      _errorMessage = null;
+    }
     _addDiagnostic(
       AppDiagnosticLevel.info,
       'settings.updated',

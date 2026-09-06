@@ -119,6 +119,7 @@ void main() {
 
     expect(controller.settings.saveRawUidInHistory, isFalse);
     expect(controller.privacySettingsRecoveryRequired, isTrue);
+    expect(controller.errorMessage, contains('still hidden'));
     expect(
       find.text('Setting disabled; matching saved data was removed'),
       findsNothing,

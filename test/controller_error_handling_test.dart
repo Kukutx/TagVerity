@@ -519,6 +519,7 @@ void main() {
       );
 
       expect(controller.privacySettingsRecoveryRequired, isTrue);
+      expect(controller.errorMessage, contains('still hidden'));
       expect(controller.history, isEmpty);
       expect(repository.loadHistoryCalls, 0);
       expect(repository.saveHistoryCalls, 0);
