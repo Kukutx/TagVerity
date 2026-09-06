@@ -52,7 +52,7 @@ TagVerity is developed **core-first**. Reliability, clear NFC semantics, privacy
 - [x] Unit/controller coverage for decoding, classification, assessment, privacy, and batch identity rules.
 - [x] Widget tests for navigation, global errors, sensitive-setting confirmation, dark mode, and combined 320px + 200% text-scale stress coverage for empty and populated core results.
 - [x] CI version/schema consistency validation and a 75% minimum line-coverage gate.
-- [x] Android debug compile and unsigned iOS debug compile in GitHub Actions.
+- [x] Android debug plus unsigned ARM32+ARM64 release AAB/ABI verification and unsigned iOS release compile in GitHub Actions.
 - [ ] Complete the physical-device matrix in `docs/DEVICE_TEST_CHECKLIST.md` and a signed iPhone Archive.
 The final unchecked item requires real NFC hardware and signing and cannot be replaced by CI.
 ## After v1.0

@@ -7,6 +7,7 @@ void main() {
       .readAsStringSync();
   final String scanContract = File('lib/domain/services/scan_contract.dart')
       .readAsStringSync();
+  final String ciWorkflow = File('.github/workflows/ci.yml').readAsStringSync();
   final Map<String, dynamic> scanSchema = jsonDecode(
     File('docs/nfc-scan-export.schema.json').readAsStringSync(),
   ) as Map<String, dynamic>;
@@ -112,6 +113,23 @@ void main() {
   if (requiredSettings.length != expectedSettings.length ||
       !requiredSettings.containsAll(expectedSettings)) {
     _fail('Diagnostics schema settings no longer match ScanSettings.');
+  }
+
+  const List<String> requiredCiReleaseChecks = <String>[
+    'flutter build appbundle --release --target-platform android-arm,android-arm64',
+    'base/lib/armeabi-v7a/libapp.so',
+    'base/lib/armeabi-v7a/libflutter.so',
+    'base/lib/arm64-v8a/libapp.so',
+    'base/lib/arm64-v8a/libflutter.so',
+    'flutter build ios --release --no-codesign',
+  ];
+  for (final String required in requiredCiReleaseChecks) {
+    if (!ciWorkflow.contains(required)) {
+      _fail('CI release gate is missing: $required');
+    }
+  }
+  if (RegExp(r'timeout-minutes:\s*20').allMatches(ciWorkflow).length < 2) {
+    _fail('Both CI build jobs must keep a bounded 20-minute timeout.');
   }
 
   final String androidManifest = File(
