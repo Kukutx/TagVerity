@@ -121,6 +121,10 @@ void main() {
     'base/lib/armeabi-v7a/libflutter.so',
     'base/lib/arm64-v8a/libapp.so',
     'base/lib/arm64-v8a/libflutter.so',
+    'base/manifest/AndroidManifest.xml',
+    'android.permission.NFC',
+    'android.hardware.nfc',
+    'android.permission.INTERNET',
     'flutter build ios --release --no-codesign',
   ];
   for (final String required in requiredCiReleaseChecks) {
@@ -135,6 +139,25 @@ void main() {
   final String androidManifest = File(
     'android/app/src/main/AndroidManifest.xml',
   ).readAsStringSync();
+  if (!RegExp(
+        r'<uses-permission\s+android:name="android\.permission\.NFC"\s*/>',
+      ).hasMatch(androidManifest) ||
+      !RegExp(
+        r'<uses-feature\s+android:name="android\.hardware\.nfc"\s+android:required="true"\s*/>',
+      ).hasMatch(androidManifest)) {
+    _fail('Android release manifest must require NFC hardware and permission.');
+  }
+  final String fileProviderPaths = File(
+    'android/app/src/main/res/xml/file_paths.xml',
+  ).readAsStringSync();
+  final List<RegExpMatch> sharedPathEntries = RegExp(
+    r'<(?:cache-path|files-path|external-path|root-path|external-files-path|external-cache-path)\b',
+  ).allMatches(fileProviderPaths).toList(growable: false);
+  if (sharedPathEntries.length != 1 ||
+      !RegExp(r'<cache-path\s+name="exports"\s+path="exports/"\s*/>')
+          .hasMatch(fileProviderPaths)) {
+    _fail('Android FileProvider must expose only cache/exports/.');
+  }
   if (!androidManifest.contains('android:allowBackup="false"') ||
       !androidManifest.contains(
         'android:fullBackupContent="@xml/backup_rules"',
@@ -172,16 +195,92 @@ void main() {
   }
 
   final String infoPlist = File('ios/Runner/Info.plist').readAsStringSync();
-  if (!infoPlist.contains(
-        'com.apple.developer.nfc.readersession.felica.systemcodes',
-      ) ||
-      !infoPlist.contains('<string>12FC</string>')) {
+  final String usageDescription =
+      _plistStringValue(infoPlist, 'NFCReaderUsageDescription') ?? '';
+  if (usageDescription.trim().isEmpty) {
+    _fail('iOS NFCReaderUsageDescription is missing or empty.');
+  }
+  if (!_plistArrayContains(
+    infoPlist,
+    'com.apple.developer.nfc.readersession.felica.systemcodes',
+    '12FC',
+  )) {
     _fail('iOS NFC-F Type 3 system code 12FC is missing from Info.plist.');
+  }
+  if (!_plistArrayContains(
+    infoPlist,
+    'com.apple.developer.nfc.readersession.iso7816.select-identifiers',
+    'D2760000850101',
+  )) {
+    _fail('iOS NFC Forum Type 4 / NDEF AID is missing from Info.plist.');
+  }
+  final String entitlements = File('ios/Runner/Runner.entitlements')
+      .readAsStringSync();
+  if (!_plistArrayContains(
+    entitlements,
+    'com.apple.developer.nfc.readersession.formats',
+    'TAG',
+  )) {
+    _fail('iOS NFC TAG reader-session entitlement is missing.');
+  }
+  final String xcodeProject = File('ios/Runner.xcodeproj/project.pbxproj')
+      .readAsStringSync();
+  const Set<String> expectedAppConfigurations = <String>{
+    'Debug',
+    'Profile',
+    'Release',
+  };
+  final Set<String> wiredAppConfigurations = <String>{};
+  final RegExp buildConfiguration = RegExp(
+    r'buildSettings = \{(.*?)\};\s*name = (Debug|Release|Profile);',
+    dotAll: true,
+  );
+  for (final RegExpMatch match in buildConfiguration.allMatches(xcodeProject)) {
+    final String block = match.group(1)!;
+    final String configuration = match.group(2)!;
+    if (!block.contains('PRODUCT_BUNDLE_IDENTIFIER = dev.kukutx.tagverity;')) {
+      continue;
+    }
+    wiredAppConfigurations.add(configuration);
+    if (!block.contains('INFOPLIST_FILE = Runner/Info.plist;') ||
+        !block.contains(
+          'CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;',
+        )) {
+      _fail(
+        'iOS $configuration app configuration is not wired to the NFC plist/entitlements.',
+      );
+    }
+  }
+  if (wiredAppConfigurations.length != expectedAppConfigurations.length ||
+      !wiredAppConfigurations.containsAll(expectedAppConfigurations)) {
+    _fail(
+      'iOS app Debug/Profile/Release NFC configuration wiring is incomplete.',
+    );
   }
   stdout.writeln(
     'Project metadata OK: version ${appVersion.group(1)}, '
     'scan schema $scanVersion, diagnostics schema $diagnosticsVersion.',
   );
+}
+
+String? _plistStringValue(String source, String key) {
+  final RegExpMatch? match = RegExp(
+    '<key>\\s*${RegExp.escape(key)}\\s*</key>\\s*<string>(.*?)</string>',
+    dotAll: true,
+  ).firstMatch(source);
+  return match?.group(1);
+}
+
+bool _plistArrayContains(String source, String key, String value) {
+  final RegExpMatch? match = RegExp(
+    '<key>\\s*${RegExp.escape(key)}\\s*</key>\\s*<array>(.*?)</array>',
+    dotAll: true,
+  ).firstMatch(source);
+  if (match == null) {
+    return false;
+  }
+  return RegExp('<string>\\s*${RegExp.escape(value)}\\s*</string>')
+      .hasMatch(match.group(1)!);
 }
 
 int _backupExclusionCount(String source, String domain) {
