@@ -26,7 +26,7 @@ TagVerity is developed **core-first**. Reliability, clear NFC semantics, privacy
 - [x] Native session start/close waits are bounded for UI recovery, while unresolved native transitions continue blocking replacement sessions; late start success is automatically closed before the lock is released, and the fixed scan timeout still covers both discovery and tag inspection.
 - [x] No hard-coded rearm timing delay.
 - [x] Repeated-ID checks only when a comparable platform identifier is available.
-- [x] Explicit session-only count when comparison is unavailable.
+- [x] Separate session-only and unknown-identity counts when comparison is unavailable; unknown is never mislabeled as session-only.
 - [x] PASS / LIMITED / REVIEW totals calculated once per batch mutation.
 - [x] 1000-scan capacity guard.
 - [x] Lazy batch result rendering.

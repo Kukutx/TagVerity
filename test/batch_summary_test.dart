@@ -4,22 +4,33 @@ import 'package:tagverity/domain/models/nfc_scan.dart';
 import 'package:tagverity/domain/models/tag_identity_stability.dart';
 
 void main() {
-  test('BatchSummary computes quality and identity metrics in one pass', () {
-    final List<NfcScan> scans = <NfcScan>[
-      _scan('a', 'same'),
-      _scan('b', 'same'),
-      _scan('c', 'session-only', identity: TagIdentityStability.sessionOnly),
-      _scan('d', 'review', warnings: const <String>['NDEF read failed']),
-    ];
-    final BatchSummary summary = BatchSummary.fromScans(scans);
-    expect(summary.total, 4);
-    expect(summary.healthy, 3);
-    expect(summary.review, 1);
-    expect(summary.comparable, 3);
-    expect(summary.sessionOnly, 1);
-    expect(summary.distinctComparableIds, 2);
-    expect(summary.repeatedFingerprints, <String>{'same'});
-  });
+  test(
+    'BatchSummary computes quality and tri-state identity metrics in one pass',
+    () {
+      final List<NfcScan> scans = <NfcScan>[
+        _scan('a', 'same'),
+        _scan('b', 'same'),
+        _scan('c', 'session-only', identity: TagIdentityStability.sessionOnly),
+        _scan('d', 'review', warnings: const <String>['NDEF read failed']),
+        _scan('e', 'unknown', identity: TagIdentityStability.unknown),
+      ];
+
+      final BatchSummary summary = BatchSummary.fromScans(scans);
+
+      expect(summary.total, 5);
+      expect(summary.healthy, 4);
+      expect(summary.review, 1);
+      expect(summary.comparable, 3);
+      expect(summary.sessionOnly, 1);
+      expect(summary.unknownIdentity, 1);
+      expect(
+        summary.comparable + summary.sessionOnly + summary.unknownIdentity,
+        summary.total,
+      );
+      expect(summary.distinctComparableIds, 2);
+      expect(summary.repeatedFingerprints, <String>{'same'});
+    },
+  );
 }
 
 NfcScan _scan(

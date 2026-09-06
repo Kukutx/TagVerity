@@ -16,7 +16,7 @@
 - [ ] PASS / LIMITED / REVIEW semantics are sensible on real tags; a valid non-NDEF smart card can PASS.
 - [ ] Manual and continuous Batch modes both record multiple tags.
 - [ ] Continuous Batch stops cleanly on user stop, scan error/timeout, batch finish, app backgrounding, and capacity limit.
-- [ ] Repeated IDs are flagged only when a comparable platform identifier is available; session-only scans remain explicitly not comparable.
+- [ ] Repeated IDs are flagged only when a comparable platform identifier is available; session-only and unknown scans remain explicitly non-comparable and are counted separately in Batch.
 - [ ] History search and transactional delete/clear behavior work.
 - [ ] JSON schema-v3 and identity-aware batch CSV exports work.
 - [ ] Share failures produce the global error banner rather than crashing.

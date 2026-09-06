@@ -195,6 +195,10 @@ class _BatchSummaryCard extends StatelessWidget {
               label: 'Session-only',
               value: summary.sessionOnly.toString(),
             ),
+            _Metric(
+              label: 'Unknown ID',
+              value: summary.unknownIdentity.toString(),
+            ),
           ];
           return Wrap(
             spacing: spacing,
