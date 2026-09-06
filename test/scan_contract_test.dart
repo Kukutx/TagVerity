@@ -9,6 +9,18 @@ void main() {
     expect(() => ScanContract.validate(_scan()), returnsNormally);
   });
 
+  test('scan collection contract rejects duplicate scan IDs', () {
+    final NfcScan scan = _scan();
+
+    expect(
+      () => ScanContract.validateAll(<NfcScan>[
+        scan,
+        scan.copyWith(scannedAt: DateTime.utc(2026, 9, 6, 0, 0, 1)),
+      ]),
+      throwsFormatException,
+    );
+  });
+
   test('scan contract rejects invalid fingerprint UID and duplicate tech', () {
     expect(
       () => ScanContract.validate(_scan().copyWith(uidFingerprint: 'not-sha')),

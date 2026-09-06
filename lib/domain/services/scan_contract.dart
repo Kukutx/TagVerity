@@ -65,8 +65,12 @@ abstract final class ScanContract {
   }
 
   static void validateAll(Iterable<NfcScan> scans) {
+    final Set<String> scanIds = <String>{};
     for (final NfcScan scan in scans) {
       validate(scan);
+      if (!scanIds.add(scan.id)) {
+        throw const FormatException('Scan collection contains duplicate IDs.');
+      }
     }
   }
 

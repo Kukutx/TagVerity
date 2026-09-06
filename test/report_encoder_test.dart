@@ -41,12 +41,32 @@ void main() {
     );
   });
 
+  test('JSON and CSV exports reject duplicate event IDs', () {
+    final NfcScan first = _scan(
+      'a' * 64,
+      TagIdentityStability.stable,
+      id: 'duplicate-export-id',
+    );
+    final NfcScan second = first.copyWith(
+      scannedAt: DateTime.utc(2026, 9, 5, 12, 34, 57),
+    );
+
+    expect(
+      () => ReportEncoder.exportEnvelope(<NfcScan>[first, second]),
+      throwsFormatException,
+    );
+    expect(
+      () => ReportEncoder.batchCsv(<NfcScan>[first, second]),
+      throwsFormatException,
+    );
+  });
+
   test(
     'batch CSV reports repeated, unique and session-only identity semantics',
     () {
       final List<NfcScan> scans = <NfcScan>[
-        _scan('b' * 64, TagIdentityStability.stable),
-        _scan('b' * 64, TagIdentityStability.stable),
+        _scan('b' * 64, TagIdentityStability.stable, id: 'scan-b-1'),
+        _scan('b' * 64, TagIdentityStability.stable, id: 'scan-b-2'),
         _scan('c' * 64, TagIdentityStability.stable),
         _scan('d' * 64, TagIdentityStability.sessionOnly),
       ];
@@ -97,10 +117,11 @@ void main() {
 NfcScan _scan(
   String fingerprint,
   TagIdentityStability stability, {
+  String? id,
   List<String> technologies = const <String>['NfcA'],
 }) {
   return NfcScan(
-    id: 'scan-$fingerprint',
+    id: id ?? 'scan-$fingerprint',
     scannedAt: DateTime.utc(2026, 9, 5, 12, 34, 56),
     platform: 'android',
     uidHex: null,

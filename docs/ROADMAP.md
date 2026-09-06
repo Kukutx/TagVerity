@@ -41,7 +41,7 @@ TagVerity is developed **core-first**. Reliability, clear NFC semantics, privacy
 - [x] History persistence is serialized across scan saves, delete, clear, scrub, and privacy rewrites, including recovery after a queued write failure.
 - [x] Corrupt local history/settings surface an error instead of silently pretending data is empty.
 - [x] If privacy settings are unreadable, fail closed: keep saved history hidden, pause scanning and policy-dependent history mutations, allow policy selection without touching history, require an explicit serialized recovery before history is loaded, and offer a confirmed delete-all path that never loads the hidden copy.
-- [x] Persisted history is raw-shape/type validated on load and before save, then checked through the shared model-level scan contract for fingerprint/UID/identity, technology, and NDEF invariants; the legacy 500-record ceiling and early-v2 identity recovery remain compatible.
+- [x] Persisted history is raw-shape/type validated on load and before save, then checked through the shared collection/model scan contract for unique event IDs, fingerprint/UID/identity, technology, and NDEF invariants; the legacy 500-record ceiling and early-v2 identity recovery remain compatible.
 - [x] Scan models are immutable snapshots: nested scan collections are defensively copied/frozen and JSON DTO collections do not alias back into validated scan state.
 - [x] JSON export for scans/history and CSV export for batches validate the shared scan contract before encoding; preparation failures surface through the global error path instead of false success or uncaught exceptions.
 - [x] Native Android/iOS sharing with failure reporting, isolated export directories, and 24-hour stale temporary-export cleanup.
