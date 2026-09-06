@@ -51,6 +51,28 @@ void main() {
       'schema=$diagnosticsSchemaVersion',
     );
   }
+  final Map<String, dynamic> scanDefinitions =
+      scanSchema[r'$defs'] as Map<String, dynamic>;
+  final Map<String, dynamic> scanProperties =
+      (scanDefinitions['scan'] as Map<String, dynamic>)['properties']
+          as Map<String, dynamic>;
+  final Map<String, dynamic> ndefProperties =
+      (scanDefinitions['ndefRecord'] as Map<String, dynamic>)['properties']
+          as Map<String, dynamic>;
+  const String uidHexPattern = r'^(?:[0-9A-Fa-f]{2})(?::[0-9A-Fa-f]{2})*$';
+  const String colonHexPattern = r'^(?:[0-9A-Fa-f]{2}(?::[0-9A-Fa-f]{2})*)?$';
+  if ((scanProperties['uidHex'] as Map<String, dynamic>)['pattern'] !=
+          uidHexPattern ||
+      (ndefProperties['identifierHex'] as Map<String, dynamic>)['pattern'] !=
+          colonHexPattern ||
+      (ndefProperties['payloadPreviewHex']
+              as Map<String, dynamic>)['pattern'] !=
+          colonHexPattern ||
+      (ndefProperties['payloadPreviewHex']
+              as Map<String, dynamic>)['maxLength'] !=
+          191) {
+    _fail('Scan export hex-field constraints no longer match runtime output.');
+  }
   final Map<String, dynamic> diagnosticSettings =
       ((diagnosticsSchema['properties'] as Map<String, dynamic>)['settings']
           as Map<String, dynamic>);

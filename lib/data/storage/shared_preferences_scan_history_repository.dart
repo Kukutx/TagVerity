@@ -19,6 +19,9 @@ final class SharedPreferencesScanHistoryRepository
   static const String _legacyHistoryKey = 'nfc_inspector.history.v1';
   static const String _legacySettingsKey = 'nfc_inspector.settings.v1';
   static final RegExp _fingerprintPattern = RegExp(r'^[0-9a-f]{64}$');
+  static final RegExp _colonHexPattern = RegExp(
+    r'^(?:[0-9A-Fa-f]{2}(?::[0-9A-Fa-f]{2})*)?$',
+  );
   static const Set<String> _scanFields = <String>{
     'id',
     'scannedAt',
@@ -179,14 +182,10 @@ final class SharedPreferencesScanHistoryRepository
               record is! Map<String, dynamic> ||
               !_isValidNdefRecordJson(record),
         ) ||
-        records
-                .map(
-                  (Object? record) =>
-                      (record as Map<String, dynamic>)['index'] as int,
-                )
-                .toSet()
-                .length !=
-            records.length ||
+        records.asMap().entries.any(
+          (MapEntry<int, dynamic> entry) =>
+              (entry.value as Map<String, dynamic>)['index'] != entry.key,
+        ) ||
         warnings is! List<dynamic> ||
         warnings.any((Object? item) => item is! String);
 
@@ -209,18 +208,27 @@ final class SharedPreferencesScanHistoryRepository
     final Object? byteLength = json['byteLength'];
     final Object? summary = json['summary'];
     final Object? payloadPreviewHex = json['payloadPreviewHex'];
-    return index is int &&
-        index >= 0 &&
-        typeNameFormat is String &&
-        type is String &&
-        identifierHex is String &&
-        payloadLength is int &&
-        payloadLength >= 0 &&
-        byteLength is int &&
-        byteLength >= 0 &&
-        summary is String &&
-        payloadPreviewHex is String;
+    if (index is! int ||
+        index < 0 ||
+        typeNameFormat is! String ||
+        type is! String ||
+        identifierHex is! String ||
+        !_colonHexPattern.hasMatch(identifierHex) ||
+        payloadLength is! int ||
+        payloadLength < 0 ||
+        byteLength is! int ||
+        byteLength < payloadLength ||
+        summary is! String ||
+        payloadPreviewHex is! String ||
+        !_colonHexPattern.hasMatch(payloadPreviewHex)) {
+      return false;
+    }
+    final int expectedPreviewBytes = payloadLength < 64 ? payloadLength : 64;
+    return _hexByteCount(payloadPreviewHex) == expectedPreviewBytes;
   }
+
+  int _hexByteCount(String value) =>
+      value.isEmpty ? 0 : value.split(':').length;
 
   void _validateHistoryForSave(List<NfcScan> scans) {
     final Set<String> scanIds = <String>{};

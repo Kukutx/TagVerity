@@ -360,6 +360,45 @@ void main() {
       await expectLater(repository.loadHistory(), throwsFormatException);
     });
 
+    test('invalid persisted NDEF invariants are rejected', () async {
+      Future<void> expectRejected(
+        void Function(Map<String, Object?> record) mutate,
+      ) async {
+        final Map<String, Object?> json = _scan().toJson();
+        final List<dynamic> records = json['ndefRecords']! as List<dynamic>;
+        final Map<String, Object?> record = Map<String, Object?>.from(
+          records.single as Map,
+        );
+        mutate(record);
+        json['ndefRecords'] = <Object?>[record];
+        final store = InMemorySharedPreferencesAsync.withData(<String, Object>{
+          'tagverity.history.v2': jsonEncode(<Object?>[json]),
+        });
+        SharedPreferencesAsyncPlatform.instance = store;
+        final repository = SharedPreferencesScanHistoryRepository(
+          preferences: SharedPreferencesAsync(),
+        );
+
+        await expectLater(repository.loadHistory(), throwsFormatException);
+      }
+
+      await expectRejected(
+        (Map<String, Object?> record) => record['identifierHex'] = '0G',
+      );
+      await expectRejected(
+        (Map<String, Object?> record) => record['payloadPreviewHex'] = '68:6Z',
+      );
+      await expectRejected(
+        (Map<String, Object?> record) => record['payloadPreviewHex'] = '68:65',
+      );
+      await expectRejected(
+        (Map<String, Object?> record) => record['byteLength'] = 4,
+      );
+      await expectRejected(
+        (Map<String, Object?> record) => record['index'] = 1,
+      );
+    });
+
     test('corrupt nested NDEF records are rejected', () async {
       final Map<String, Object?> json = _scan().toJson();
       json['ndefRecords'] = <Object?>[
