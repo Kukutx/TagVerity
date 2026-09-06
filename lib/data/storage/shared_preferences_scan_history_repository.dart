@@ -19,6 +19,28 @@ final class SharedPreferencesScanHistoryRepository
   static const String _legacyHistoryKey = 'nfc_inspector.history.v1';
   static const String _legacySettingsKey = 'nfc_inspector.settings.v1';
   static final RegExp _fingerprintPattern = RegExp(r'^[0-9a-f]{64}$');
+  static const Set<String> _scanFields = <String>{
+    'id',
+    'scannedAt',
+    'platform',
+    'uidHex',
+    'uidFingerprint',
+    'identityStability',
+    'technologies',
+    'details',
+    'ndefRecords',
+    'warnings',
+  };
+  static const Set<String> _ndefRecordFields = <String>{
+    'index',
+    'typeNameFormat',
+    'type',
+    'identifierHex',
+    'payloadLength',
+    'byteLength',
+    'summary',
+    'payloadPreviewHex',
+  };
   final SharedPreferencesAsync _preferences;
   @override
   Future<List<NfcScan>> loadHistory() async {
@@ -131,6 +153,8 @@ final class SharedPreferencesScanHistoryRepository
               'unknown',
             }.contains(identityStability));
     final bool invalid =
+        json.keys.any((String key) => !_scanFields.contains(key)) ||
+        !json.containsKey('uidHex') ||
         id is! String ||
         id.isEmpty ||
         scannedAt is! String ||
@@ -174,6 +198,9 @@ final class SharedPreferencesScanHistoryRepository
   }
 
   bool _isValidNdefRecordJson(Map<String, dynamic> json) {
+    if (json.keys.any((String key) => !_ndefRecordFields.contains(key))) {
+      return false;
+    }
     final Object? index = json['index'];
     final Object? typeNameFormat = json['typeNameFormat'];
     final Object? type = json['type'];
@@ -230,7 +257,9 @@ final class SharedPreferencesScanHistoryRepository
       if (current.isEmpty) {
         throw const FormatException('Saved settings are empty or corrupt.');
       }
-      return _decodeSettings(current);
+      final ScanSettings settings = _decodeSettings(current);
+      await _eraseLegacySettingsCopy();
+      return settings;
     }
     final String? legacy = await _preferences.getString(_legacySettingsKey);
     if (legacy == null || legacy.isEmpty) {
@@ -238,8 +267,25 @@ final class SharedPreferencesScanHistoryRepository
     }
     final ScanSettings migrated = _decodeSettings(legacy);
     await saveSettings(migrated);
-    await _preferences.remove(_legacySettingsKey);
+    await _eraseLegacySettingsCopy();
     return migrated;
+  }
+
+  Future<void> _eraseLegacySettingsCopy() async {
+    try {
+      final String? legacy = await _preferences.getString(_legacySettingsKey);
+      if (legacy == null) {
+        return;
+      }
+      await _preferences.setString(_legacySettingsKey, '{}');
+      try {
+        await _preferences.remove(_legacySettingsKey);
+      } on Object {
+        // The stale key now contains no user-selected retention values.
+      }
+    } on Object {
+      // Current settings remain authoritative; cleanup is best-effort only.
+    }
   }
 
   ScanSettings _decodeSettings(String encoded) {
