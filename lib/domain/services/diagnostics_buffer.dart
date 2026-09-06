@@ -68,7 +68,7 @@ final class DiagnosticsBuffer {
         );
         count++;
       }
-      return result;
+      return Map<String, Object?>.unmodifiable(result);
     }
     if (value is Iterable) {
       final List<Object?> result = <Object?>[];
@@ -82,7 +82,7 @@ final class DiagnosticsBuffer {
       } on Object {
         result.add('[unavailable-item]');
       }
-      return result;
+      return List<Object?>.unmodifiable(result);
     }
     return _redactAndBound(_safeToString(value));
   }
