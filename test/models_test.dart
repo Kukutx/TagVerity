@@ -23,6 +23,94 @@ void main() {
     expect(restored.uidHex, scan.uidHex);
     expect(restored.details, scan.details);
   });
+  test('NfcScan snapshots collection inputs and exposes immutable fields', () {
+    final List<String> technologies = <String>['NfcA'];
+    final Map<String, String> details = <String, String>{'protocol': 'NFC-A'};
+    const NdefRecordInfo record = NdefRecordInfo(
+      index: 0,
+      typeNameFormat: 'wellKnown',
+      type: 'T',
+      identifierHex: '',
+      payloadLength: 0,
+      byteLength: 0,
+      summary: 'Empty text record',
+      payloadPreviewHex: '',
+    );
+    final List<NdefRecordInfo> records = <NdefRecordInfo>[record];
+    final List<String> warnings = <String>['First warning'];
+
+    final NfcScan scan = NfcScan(
+      id: 'snapshot',
+      scannedAt: DateTime.utc(2026, 9, 6),
+      platform: 'android',
+      uidFingerprint: 'a' * 64,
+      technologies: technologies,
+      details: details,
+      ndefRecords: records,
+      warnings: warnings,
+    );
+
+    technologies.add('NfcB');
+    details['protocol'] = 'mutated';
+    records.clear();
+    warnings.add('Second warning');
+
+    expect(scan.technologies, <String>['NfcA']);
+    expect(scan.details, <String, String>{'protocol': 'NFC-A'});
+    expect(scan.ndefRecords, <NdefRecordInfo>[record]);
+    expect(scan.warnings, <String>['First warning']);
+
+    expect(
+      () => scan.technologies.add('IsoDep'),
+      throwsA(isA<UnsupportedError>()),
+    );
+    expect(
+      () => scan.details['protocol'] = 'changed',
+      throwsA(isA<UnsupportedError>()),
+    );
+    expect(() => scan.ndefRecords.clear(), throwsA(isA<UnsupportedError>()));
+    expect(() => scan.warnings.clear(), throwsA(isA<UnsupportedError>()));
+
+    final Map<String, Object?> json = scan.toJson();
+    (json['technologies']! as List<String>).add('IsoDep');
+    (json['details']! as Map<String, String>)['protocol'] = 'json-mutated';
+    (json['warnings']! as List<String>).clear();
+
+    expect(scan.technologies, <String>['NfcA']);
+    expect(scan.details['protocol'], 'NFC-A');
+    expect(scan.warnings, <String>['First warning']);
+
+    final List<String> replacementTechnologies = <String>['IsoDep'];
+    final NfcScan copied = scan.copyWith(technologies: replacementTechnologies);
+    replacementTechnologies.clear();
+    expect(copied.technologies, <String>['IsoDep']);
+  });
+
+  test('NfcScan fromJson snapshots nested collection inputs', () {
+    final Map<String, dynamic> json = <String, dynamic>{
+      'id': 'json-snapshot',
+      'scannedAt': '2026-09-06T00:00:00.000Z',
+      'platform': 'android',
+      'uidHex': null,
+      'uidFingerprint': 'b' * 64,
+      'identityStability': 'sessionOnly',
+      'technologies': <String>['NfcA'],
+      'details': <String, dynamic>{'protocol': 'NFC-A'},
+      'ndefRecords': <Map<String, dynamic>>[],
+      'warnings': <String>['warning'],
+    };
+
+    final NfcScan restored = NfcScan.fromJson(json);
+
+    (json['technologies']! as List<String>).add('NfcB');
+    (json['details']! as Map<String, dynamic>)['protocol'] = 'mutated';
+    (json['warnings']! as List<String>).clear();
+
+    expect(restored.technologies, <String>['NfcA']);
+    expect(restored.details, <String, String>{'protocol': 'NFC-A'});
+    expect(restored.warnings, <String>['warning']);
+  });
+
   test('ScanSettings keeps sensitive history fields disabled by default', () {
     const ScanSettings settings = ScanSettings();
     expect(settings.readNdef, isTrue);

@@ -2,18 +2,21 @@ import 'ndef_record_info.dart';
 import 'tag_identity_stability.dart';
 
 class NfcScan {
-  const NfcScan({
+  NfcScan({
     required this.id,
     required this.scannedAt,
     required this.platform,
     required this.uidFingerprint,
-    required this.technologies,
-    required this.details,
-    required this.ndefRecords,
-    required this.warnings,
+    required List<String> technologies,
+    required Map<String, String> details,
+    required List<NdefRecordInfo> ndefRecords,
+    required List<String> warnings,
     this.uidHex,
     this.identityStability = TagIdentityStability.unknown,
-  });
+  }) : technologies = List<String>.unmodifiable(technologies),
+       details = Map<String, String>.unmodifiable(details),
+       ndefRecords = List<NdefRecordInfo>.unmodifiable(ndefRecords),
+       warnings = List<String>.unmodifiable(warnings);
 
   final String id;
   final DateTime scannedAt;
@@ -54,19 +57,19 @@ class NfcScan {
     );
   }
 
-  Map<String, Object?> toJson({bool includeRawUid = true}) => <String, Object?>{
+  Map<String, Object?> toJson() => <String, Object?>{
     'id': id,
     'scannedAt': scannedAt.toUtc().toIso8601String(),
     'platform': platform,
-    'uidHex': includeRawUid ? uidHex : null,
+    'uidHex': uidHex,
     'uidFingerprint': uidFingerprint,
     'identityStability': identityStability.name,
-    'technologies': technologies,
-    'details': details,
+    'technologies': List<String>.of(technologies),
+    'details': Map<String, String>.of(details),
     'ndefRecords': ndefRecords
         .map((NdefRecordInfo record) => record.toJson())
         .toList(),
-    'warnings': warnings,
+    'warnings': List<String>.of(warnings),
   };
 
   factory NfcScan.fromJson(Map<String, dynamic> json) {
