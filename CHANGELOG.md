@@ -62,6 +62,7 @@
 - Added conservative NFC tag classification without guessing proprietary applications.
 - Hardened NDEF decoding for UTF-16, malformed text, binary payloads, unknown URI prefixes, empty tags, and bounded summaries.
 - Tightened NFC Forum Text RTD decoding: the reserved status bit is rejected, malformed UTF-16 surrogate sequences are rejected, valid surrogate pairs remain supported, and valid whitespace-only UTF-8/UTF-16 text is classified as empty instead of malformed.
+- NDEF text summaries now reject embedded C0 controls (except Tab/LF/CR), DEL, and C1 controls in decoded UTF-8/UTF-16 text, preventing invisible terminal/control bytes from reaching the UI while preserving normal multiline formatting.
 - Added continuous Batch scanning with lifecycle/error stop conditions, capacity protection, and identity-aware CSV output.
 - Added transactional privacy/history mutations, privacy-safe legacy migration, export schema v3, Android/iOS CI build gates, open-source contribution templates, protected `main`, Dependabot, secret scanning, and a physical-device v1.0 release gate.
 ## 1.0.0 - 2026-09-03
