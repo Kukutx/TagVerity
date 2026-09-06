@@ -66,6 +66,81 @@ void main() {
       );
     });
 
+    test('treats valid whitespace-only UTF-8 text as empty', () {
+      final NdefRecord record = _record(
+        type: 'T',
+        payload: <int>[0x02, ...ascii.encode('en'), ...utf8.encode('   ')],
+      );
+
+      expect(
+        NdefDecoder.decodeRecord(0, record).summary,
+        'Empty text record [en]',
+      );
+    });
+
+    test('treats valid whitespace-only UTF-16 text as empty', () {
+      final NdefRecord record = _record(
+        type: 'T',
+        payload: <int>[
+          0x82,
+          ...ascii.encode('en'),
+          0xFE,
+          0xFF,
+          0x00,
+          0x20,
+          0x00,
+          0x20,
+        ],
+      );
+
+      expect(
+        NdefDecoder.decodeRecord(0, record).summary,
+        'Empty text record [en]',
+      );
+    });
+
+    test('rejects the reserved text status bit', () {
+      final NdefRecord record = _record(
+        type: 'T',
+        payload: <int>[0x42, ...ascii.encode('en'), ...utf8.encode('Hello')],
+      );
+
+      expect(
+        NdefDecoder.decodeRecord(0, record).summary,
+        'Invalid text record',
+      );
+    });
+
+    test('rejects unpaired UTF-16 surrogates', () {
+      final NdefRecord record = _record(
+        type: 'T',
+        payload: <int>[0x82, ...ascii.encode('en'), 0xFE, 0xFF, 0xD8, 0x3D],
+      );
+
+      expect(
+        NdefDecoder.decodeRecord(0, record).summary,
+        'Invalid UTF-16 text record',
+      );
+    });
+
+    test('decodes a valid UTF-16 surrogate pair', () {
+      final NdefRecord record = _record(
+        type: 'T',
+        payload: <int>[
+          0x82,
+          ...ascii.encode('en'),
+          0xFE,
+          0xFF,
+          0xD8,
+          0x3D,
+          0xDE,
+          0x00,
+        ],
+      );
+
+      expect(NdefDecoder.decodeRecord(0, record).summary, '😀 [en]');
+    });
+
     test('rejects invalid text language length', () {
       final NdefRecord record = _record(type: 'T', payload: <int>[0x3F, 0x65]);
 

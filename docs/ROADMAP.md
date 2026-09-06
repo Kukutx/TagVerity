@@ -16,6 +16,7 @@ TagVerity is developed **core-first**. Reliability, clear NFC semantics, privacy
 - [x] Detect support, capacity, writable/read-only state, and read status.
 - [x] Decode NFC Forum Text and URI records.
 - [x] Decode UTF-8 and UTF-16 Text records.
+- [x] Validate Text RTD status/reserved bits and UTF-16 surrogate pairing while distinguishing malformed text from valid empty/whitespace-only content.
 - [x] Handle empty NDEF containers.
 - [x] Handle malformed text, binary media payloads, and unknown URI prefixes safely.
 - [x] Bound record summaries so unusual tags cannot flood the UI or exports.

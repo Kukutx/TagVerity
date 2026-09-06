@@ -63,6 +63,9 @@ abstract final class NdefDecoder {
       return 'Empty text record';
     }
     final int status = payload.first;
+    if ((status & 0x40) != 0) {
+      return 'Invalid text record';
+    }
     final bool utf16 = (status & 0x80) != 0;
     final int languageLength = status & 0x3F;
     final int textStart = 1 + languageLength;
@@ -74,12 +77,13 @@ abstract final class NdefDecoder {
       return 'Invalid text record';
     }
     final Uint8List textBytes = Uint8List.fromList(payload.sublist(textStart));
-    final String text = utf16
-        ? _decodeUtf16(textBytes)
-        : _decodeUtf8(textBytes);
-    if (textBytes.isNotEmpty && text.isEmpty) {
+    final String? decodedText = utf16
+        ? _tryDecodeUtf16(textBytes)
+        : _tryDecodeUtf8(textBytes);
+    if (decodedText == null) {
       return utf16 ? 'Invalid UTF-16 text record' : 'Invalid UTF-8 text record';
     }
+    final String text = decodedText.trim();
     if (text.isEmpty) {
       return language.isEmpty
           ? 'Empty text record'
@@ -128,7 +132,7 @@ abstract final class NdefDecoder {
     }
   }
 
-  static String _decodeUtf16(Uint8List bytes) {
+  static String? _tryDecodeUtf16(Uint8List bytes) {
     if (bytes.isEmpty) {
       return '';
     }
@@ -143,7 +147,7 @@ abstract final class NdefDecoder {
       }
     }
     if ((bytes.length - offset).isOdd) {
-      return '';
+      return null;
     }
     final List<int> codeUnits = <int>[];
     for (int index = offset; index < bytes.length; index += 2) {
@@ -152,23 +156,49 @@ abstract final class NdefDecoder {
           : (bytes[index] << 8) | bytes[index + 1];
       codeUnits.add(unit);
     }
+    if (!_hasValidUtf16Surrogates(codeUnits)) {
+      return null;
+    }
     try {
-      final String value = String.fromCharCodes(codeUnits).trim();
-      return _isMostlyPrintable(value) ? value : '';
+      final String value = String.fromCharCodes(codeUnits);
+      return _isMostlyPrintable(value) ? value : null;
     } on ArgumentError {
-      return '';
+      return null;
     }
   }
 
+  static bool _hasValidUtf16Surrogates(List<int> codeUnits) {
+    for (int index = 0; index < codeUnits.length; index++) {
+      final int unit = codeUnits[index];
+      if (unit >= 0xD800 && unit <= 0xDBFF) {
+        if (index + 1 >= codeUnits.length) {
+          return false;
+        }
+        final int low = codeUnits[index + 1];
+        if (low < 0xDC00 || low > 0xDFFF) {
+          return false;
+        }
+        index++;
+      } else if (unit >= 0xDC00 && unit <= 0xDFFF) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   static String _decodeUtf8(Iterable<int> bytes) {
+    return _tryDecodeUtf8(bytes)?.trim() ?? '';
+  }
+
+  static String? _tryDecodeUtf8(Iterable<int> bytes) {
     if (bytes.isEmpty) {
       return '';
     }
     try {
-      final String value = utf8.decode(bytes.toList(growable: false)).trim();
-      return _isMostlyPrintable(value) ? value : '';
+      final String value = utf8.decode(bytes.toList(growable: false));
+      return _isMostlyPrintable(value) ? value : null;
     } on FormatException {
-      return '';
+      return null;
     }
   }
 
