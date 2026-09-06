@@ -120,7 +120,6 @@ final class SharedPreferencesScanHistoryRepository
       );
     }
     final List<NfcScan> scans = <NfcScan>[];
-    final Set<String> scanIds = <String>{};
     for (final Object? item in decoded) {
       if (item is! Map<String, dynamic>) {
         throw const FormatException(
@@ -134,14 +133,9 @@ final class SharedPreferencesScanHistoryRepository
           identityStability: HistoryPrivacy.inferEarlyV2IdentityStability(scan),
         );
       }
-      ScanContract.validate(scan);
-      if (!scanIds.add(scan.id)) {
-        throw const FormatException(
-          'Saved scan history contains duplicate scan IDs.',
-        );
-      }
       scans.add(scan);
     }
+    ScanContract.validateAll(scans);
     return List<NfcScan>.unmodifiable(scans);
   }
 
@@ -213,16 +207,10 @@ final class SharedPreferencesScanHistoryRepository
     if (scans.length > _maximumCompatibleHistoryRecords) {
       throw const FormatException('Scan history cannot exceed 500 records.');
     }
-    final Set<String> scanIds = <String>{};
     for (final NfcScan scan in scans) {
       _validateScanJson(scan.toJson());
-      ScanContract.validate(scan);
-      if (!scanIds.add(scan.id)) {
-        throw const FormatException(
-          'Scan history cannot be saved with duplicate scan IDs.',
-        );
-      }
     }
+    ScanContract.validateAll(scans);
   }
 
   @override
