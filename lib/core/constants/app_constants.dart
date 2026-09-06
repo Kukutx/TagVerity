@@ -7,6 +7,7 @@ abstract final class AppConstants {
   static const int defaultHistoryLimit = 100;
   static const int defaultScanTimeoutSeconds = 30;
   static const int availabilityCheckTimeoutSeconds = 5;
+  static const int sessionCloseTimeoutSeconds = 5;
   static const int exportSchemaVersion = 3;
   static const int diagnosticsSchemaVersion = 3;
   static const int maximumDiagnosticEvents = 100;

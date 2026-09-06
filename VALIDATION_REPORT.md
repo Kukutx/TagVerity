@@ -28,8 +28,8 @@ Verified on the maintainer machine without launching an emulator:
 - `dart run tool/validate_project.dart`: passed.
 - strict maintainer bootstrap with `--strict-sdk --single-sdk`: passed against Flutter 3.47.1 / Dart 3.13.1.
 - `flutter analyze`: **0 issues**.
-- `flutter test --coverage`: **123/123 tests passed**.
-- Line coverage: **79.2% (1459/1842)**, above the enforced **75%** floor. Coverage growth is concentrated in controller concurrency, local persistence, privacy, accessibility, diagnostics, report encoding, and detail UI rather than generated/platform code.
+- `flutter test --coverage`: **128/128 tests passed**.
+- Line coverage: **79.0% (1522/1927)**, above the enforced **75%** floor. Coverage growth is concentrated in controller/session concurrency, local persistence, privacy, accessibility, diagnostics, report encoding, and detail UI. Native tag-adapter lines that require real nfc_manager platform tag objects are explicitly excluded from LCOV and remain covered by compile gates plus the physical-device matrix.
 - Widget coverage includes four-tab navigation, global error visibility, sensitive-setting confirmation, dark mode, **all four core tabs at 320px + 200% text scaling**, populated Inspect/Batch/History results at the same stress size, and a full Tag Details stress pass with technical/NDEF expansion.
 - Android debug APK compilation: passed.
 - Android debug AAB compilation with `android-arm,android-arm64`: passed.
@@ -42,7 +42,7 @@ The current direct dependencies are already at their latest resolvable versions.
 - iOS NFC-F intentionally limited to the standard NFC Forum Type 3 / NDEF system code `12FC`.
 - iOS standard NFC Forum Type 4 / NDEF selection enabled through declared AID `D2760000850101`; arbitrary ISO 7816 application enumeration is not claimed.
 - Single-tag NFC inspection and availability/error handling.
-- Scan start, stop, timeout/error recovery, and lifecycle-safe cancellation.
+- Scan start, stop, timeout/error recovery, and lifecycle-safe cancellation, including timeout coverage while tag inspection is still pending and a bounded native session-close wait.
 - Conservative NFC tag classification without claiming proprietary application identity.
 - Comparable-ID vs session-only identity semantics.
 - Repeated-ID checks only when the platform exposes an identifier that can be compared.
