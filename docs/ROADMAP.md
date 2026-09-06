@@ -22,7 +22,7 @@ TagVerity is developed **core-first**. Reliability, clear NFC semantics, privacy
 ### Batch
 - [x] Manual one-tag-at-a-time batch scanning.
 - [x] Continuous batch workflow that rearms only after the native reader session closes.
-- [x] Fixed scan timeout covers both tag discovery and tag inspection; native session-close waits are bounded for UI recovery, while an unconfirmed close blocks success/rearm and replacement native sessions until the outstanding close settles.
+- [x] Native session start/close waits are bounded for UI recovery, while unresolved native transitions continue blocking replacement sessions; late start success is automatically closed before the lock is released, and the fixed scan timeout still covers both discovery and tag inspection.
 - [x] No hard-coded rearm timing delay.
 - [x] Repeated-ID checks only when a comparable platform identifier is available.
 - [x] Explicit session-only count when comparison is unavailable.

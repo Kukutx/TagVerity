@@ -11,6 +11,227 @@ import 'package:tagverity/domain/models/tag_identity_stability.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  test('native session start timeout blocks replacement until late cleanup settles', () async {
+    final _FakeNfcManager manager = _FakeNfcManager()
+      ..startCompleter = Completer<void>()
+      ..stopCompleter = Completer<void>();
+    final NfcManagerReaderService service = NfcManagerReaderService(
+      manager: manager,
+      sessionStartTimeout: const Duration(milliseconds: 100),
+      sessionCloseTimeout: const Duration(milliseconds: 100),
+      scanTimeout: const Duration(seconds: 1),
+      tagInspector: (NfcTag tag, ScanSettings settings) async => _scan(),
+    );
+
+    await expectLater(
+      service.startScan(
+        settings: const ScanSettings(),
+        onScan: (NfcScan scan) async {},
+        onError: (String message) {},
+      ),
+      throwsA(
+        isA<StateError>().having(
+          (StateError error) => error.message,
+          'message',
+          contains('start timed out'),
+        ),
+      ),
+    );
+    expect(manager.startCalls, 1);
+    expect(manager.stopCalls, 0);
+
+    await expectLater(
+      service.startScan(
+        settings: const ScanSettings(),
+        onScan: (NfcScan scan) async {},
+        onError: (String message) {},
+      ),
+      throwsA(isA<StateError>()),
+    );
+    expect(manager.startCalls, 1);
+
+    manager.startCompleter!.complete();
+    await Future<void>.delayed(Duration.zero);
+    expect(manager.stopCalls, 1);
+
+    await expectLater(
+      service.startScan(
+        settings: const ScanSettings(),
+        onScan: (NfcScan scan) async {},
+        onError: (String message) {},
+      ),
+      throwsA(
+        isA<StateError>().having(
+          (StateError error) => error.message,
+          'message',
+          contains('still closing'),
+        ),
+      ),
+    );
+    expect(manager.startCalls, 1);
+
+    manager.stopCompleter!.complete();
+    await Future<void>.delayed(Duration.zero);
+    manager
+      ..startCompleter = null
+      ..stopCompleter = null;
+    await service.startScan(
+      settings: const ScanSettings(),
+      onScan: (NfcScan scan) async {},
+      onError: (String message) {},
+    );
+    expect(manager.startCalls, 2);
+    await service.stopScan();
+  });
+
+  test(
+    'explicit stop abandons a pending native start and cleans it later',
+    () async {
+      final _FakeNfcManager manager = _FakeNfcManager()
+        ..startCompleter = Completer<void>();
+      final NfcManagerReaderService service = NfcManagerReaderService(
+        manager: manager,
+        sessionStartTimeout: const Duration(seconds: 1),
+        scanTimeout: const Duration(seconds: 1),
+        tagInspector: (NfcTag tag, ScanSettings settings) async => _scan(),
+      );
+
+      final Future<void> starting = service.startScan(
+        settings: const ScanSettings(),
+        onScan: (NfcScan scan) async {},
+        onError: (String message) {},
+      );
+      await Future<void>.delayed(Duration.zero);
+      await service.stopScan().timeout(const Duration(seconds: 1));
+      expect(manager.stopCalls, 0);
+
+      await expectLater(
+        service.startScan(
+          settings: const ScanSettings(),
+          onScan: (NfcScan scan) async {},
+          onError: (String message) {},
+        ),
+        throwsA(isA<StateError>()),
+      );
+
+      manager.startCompleter!.complete();
+      await starting;
+      await Future<void>.delayed(Duration.zero);
+      expect(manager.stopCalls, 1);
+
+      manager.startCompleter = null;
+      await Future<void>.delayed(Duration.zero);
+      await service.startScan(
+        settings: const ScanSettings(),
+        onScan: (NfcScan scan) async {},
+        onError: (String message) {},
+      );
+      expect(manager.startCalls, 2);
+      await service.stopScan();
+    },
+  );
+
+  test('late native start failure releases the pending-start lock', () async {
+    final _FakeNfcManager manager = _FakeNfcManager()
+      ..startCompleter = Completer<void>();
+    final NfcManagerReaderService service = NfcManagerReaderService(
+      manager: manager,
+      sessionStartTimeout: const Duration(milliseconds: 100),
+      tagInspector: (NfcTag tag, ScanSettings settings) async => _scan(),
+    );
+
+    await expectLater(
+      service.startScan(
+        settings: const ScanSettings(),
+        onScan: (NfcScan scan) async {},
+        onError: (String message) {},
+      ),
+      throwsA(isA<StateError>()),
+    );
+    manager.startCompleter!.completeError(StateError('late start failure'));
+    await Future<void>.delayed(Duration.zero);
+    manager.startCompleter = null;
+
+    await service.startScan(
+      settings: const ScanSettings(),
+      onScan: (NfcScan scan) async {},
+      onError: (String message) {},
+    );
+    expect(manager.startCalls, 2);
+    expect(manager.stopCalls, 0);
+    await service.stopScan();
+  });
+
+  test(
+    'iOS session error during pending start triggers one late cleanup',
+    () async {
+      final _FakeNfcManager manager = _FakeNfcManager()
+        ..startCompleter = Completer<void>();
+      final List<String> errors = <String>[];
+      final NfcManagerReaderService service = NfcManagerReaderService(
+        manager: manager,
+        sessionStartTimeout: const Duration(seconds: 1),
+        tagInspector: (NfcTag tag, ScanSettings settings) async => _scan(),
+      );
+
+      final Future<void> starting = service.startScan(
+        settings: const ScanSettings(),
+        onScan: (NfcScan scan) async {},
+        onError: errors.add,
+      );
+      await Future<void>.delayed(Duration.zero);
+      manager.failSession(
+        const NfcReaderSessionErrorIos(
+          code:
+              NfcReaderErrorCodeIos.readerSessionInvalidationErrorUserCanceled,
+          message: 'Reader session cancelled during start',
+        ),
+      );
+      expect(errors, <String>['Reader session cancelled during start']);
+      expect(manager.stopCalls, 0);
+
+      manager.startCompleter!.complete();
+      await starting;
+      await Future<void>.delayed(Duration.zero);
+      expect(manager.stopCalls, 1);
+      expect(errors, hasLength(1));
+
+      manager.startCompleter = null;
+      await service.startScan(
+        settings: const ScanSettings(),
+        onScan: (NfcScan scan) async {},
+        onError: (String message) {},
+      );
+      expect(manager.startCalls, 2);
+      await service.stopScan();
+    },
+  );
+
+  test('synchronous native start errors remain recoverable', () async {
+    final _FakeNfcManager manager = _FakeNfcManager()..throwOnStart = true;
+    final NfcManagerReaderService service = NfcManagerReaderService(
+      manager: manager,
+      tagInspector: (NfcTag tag, ScanSettings settings) async => _scan(),
+    );
+
+    await expectLater(
+      service.startScan(
+        settings: const ScanSettings(),
+        onScan: (NfcScan scan) async {},
+        onError: (String message) {},
+      ),
+      throwsA(isA<StateError>()),
+    );
+    manager.throwOnStart = false;
+    await service.startScan(
+      settings: const ScanSettings(),
+      onScan: (NfcScan scan) async {},
+      onError: (String message) {},
+    );
+    expect(manager.startCalls, 2);
+    await service.stopScan();
+  });
+
   test(
     'session timeout remains active while tag inspection is pending',
     () async {
@@ -295,7 +516,9 @@ final class _FakeNfcManager extends NfcManager {
   void Function(NfcReaderSessionErrorIos error)? _onSessionErrorIos;
   int startCalls = 0;
   int stopCalls = 0;
+  Completer<void>? startCompleter;
   Completer<void>? stopCompleter;
+  bool throwOnStart = false;
   bool throwOnStop = false;
 
   @override
@@ -312,10 +535,15 @@ final class _FakeNfcManager extends NfcManager {
     bool invalidateAfterFirstReadIos = true,
     void Function(NfcReaderSessionErrorIos)? onSessionErrorIos,
     bool noPlatformSoundsAndroid = false,
-  }) async {
+  }) {
     startCalls += 1;
     _onDiscovered = onDiscovered;
     _onSessionErrorIos = onSessionErrorIos;
+    if (throwOnStart) {
+      throw StateError('simulated synchronous start failure');
+    }
+    final Completer<void>? pending = startCompleter;
+    return pending?.future ?? Future<void>.value();
   }
 
   @override
