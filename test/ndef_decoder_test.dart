@@ -66,6 +66,54 @@ void main() {
       );
     });
 
+    test('rejects embedded C0 control characters in UTF-8 text', () {
+      final NdefRecord record = _record(
+        type: 'T',
+        payload: <int>[
+          0x02,
+          ...ascii.encode('en'),
+          ...utf8.encode('Hello\u0000world'),
+        ],
+      );
+
+      expect(
+        NdefDecoder.decodeRecord(0, record).summary,
+        'Invalid UTF-8 text record',
+      );
+    });
+
+    test('rejects embedded C1 control characters in UTF-8 text', () {
+      final NdefRecord record = _record(
+        type: 'T',
+        payload: <int>[
+          0x02,
+          ...ascii.encode('en'),
+          ...utf8.encode('Hello\u009Bworld'),
+        ],
+      );
+
+      expect(
+        NdefDecoder.decodeRecord(0, record).summary,
+        'Invalid UTF-8 text record',
+      );
+    });
+
+    test('keeps normal tab and line-break formatting in UTF-8 text', () {
+      final NdefRecord record = _record(
+        type: 'T',
+        payload: <int>[
+          0x02,
+          ...ascii.encode('en'),
+          ...utf8.encode('Hello\tworld\nnext'),
+        ],
+      );
+
+      expect(
+        NdefDecoder.decodeRecord(0, record).summary,
+        'Hello\tworld\nnext [en]',
+      );
+    });
+
     test('treats valid whitespace-only UTF-8 text as empty', () {
       final NdefRecord record = _record(
         type: 'T',
@@ -96,6 +144,29 @@ void main() {
       expect(
         NdefDecoder.decodeRecord(0, record).summary,
         'Empty text record [en]',
+      );
+    });
+
+    test('rejects embedded C1 control characters in UTF-16 text', () {
+      final NdefRecord record = _record(
+        type: 'T',
+        payload: <int>[
+          0x82,
+          ...ascii.encode('en'),
+          0xFE,
+          0xFF,
+          0x00,
+          0x48,
+          0x00,
+          0x9B,
+          0x00,
+          0x69,
+        ],
+      );
+
+      expect(
+        NdefDecoder.decodeRecord(0, record).summary,
+        'Invalid UTF-16 text record',
       );
     });
 

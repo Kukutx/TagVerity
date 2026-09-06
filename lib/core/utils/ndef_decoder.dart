@@ -161,7 +161,7 @@ abstract final class NdefDecoder {
     }
     try {
       final String value = String.fromCharCodes(codeUnits);
-      return _isMostlyPrintable(value) ? value : null;
+      return _isDisplaySafeText(value) ? value : null;
     } on ArgumentError {
       return null;
     }
@@ -196,23 +196,22 @@ abstract final class NdefDecoder {
     }
     try {
       final String value = utf8.decode(bytes.toList(growable: false));
-      return _isMostlyPrintable(value) ? value : null;
+      return _isDisplaySafeText(value) ? value : null;
     } on FormatException {
       return null;
     }
   }
 
-  static bool _isMostlyPrintable(String value) {
-    if (value.isEmpty) {
-      return true;
+  static bool _isDisplaySafeText(String value) {
+    for (final int rune in value.runes) {
+      if (rune == 9 || rune == 10 || rune == 13) {
+        continue;
+      }
+      if (rune < 0x20 || (rune >= 0x7F && rune <= 0x9F)) {
+        return false;
+      }
     }
-    final List<int> runes = value.runes.toList(growable: false);
-    final int printable = runes
-        .where(
-          (int rune) => rune == 9 || rune == 10 || rune == 13 || rune >= 32,
-        )
-        .length;
-    return printable >= (runes.length * 0.8);
+    return true;
   }
 
   static String _truncate(String value) {
