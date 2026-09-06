@@ -63,6 +63,7 @@ final class NfcScanController extends ChangeNotifier
   int _pendingHistoryMutations = 0;
   bool _batchSessionActive = false;
   bool _batchAutoContinue = false;
+  bool _historyLoadDeferredForSettings = false;
   NfcSupportStatus get supportStatus => _supportStatus;
   ScanSettings get settings => _settings;
   List<NfcScan> get history => List<NfcScan>.unmodifiable(_history);
@@ -75,6 +76,7 @@ final class NfcScanController extends ChangeNotifier
   bool get isScanning => _isScanning;
   bool get settingsBusy => _pendingSettingsMutations > 0;
   bool get historyBusy => _pendingHistoryMutations > 0;
+  bool get privacySettingsRecoveryRequired => _historyLoadDeferredForSettings;
   bool get batchSessionActive => _batchSessionActive;
   bool get batchAutoContinue => _batchAutoContinue;
   TagAssessment? get currentAssessment =>
@@ -87,14 +89,42 @@ final class NfcScanController extends ChangeNotifier
       'app.initialize.start',
       'Initializing TagVerity',
     );
+    bool settingsLoaded = true;
     try {
       _settings = await _repository.loadSettings();
     } on Object catch (error) {
+      settingsLoaded = false;
+      _historyLoadDeferredForSettings = true;
       _setError(
         'Could not load saved settings: ${ErrorText.clean(error)}',
         code: 'storage.settings.load.failed',
       );
+      _addDiagnostic(
+        AppDiagnosticLevel.warning,
+        'storage.history.load.deferred',
+        'Saved history was not loaded because privacy settings are unavailable.',
+      );
     }
+    if (settingsLoaded) {
+      await _loadHistoryForCurrentSettings();
+    } else {
+      // The privacy policy is unknown. Keep history hidden and do not touch
+      // the persisted copy until settings are successfully saved again.
+      _history = const <NfcScan>[];
+    }
+    await refreshAvailability();
+    _initialized = true;
+    _addDiagnostic(
+      AppDiagnosticLevel.info,
+      'app.initialize.complete',
+      'TagVerity initialized',
+      data: <String, Object?>{'historyCount': _history.length},
+    );
+    _notify();
+  }
+
+  Future<({bool loaded, bool complete})>
+  _loadHistoryForCurrentSettings() async {
     try {
       final List<NfcScan> history = await _repository.loadHistory();
       final List<NfcScan> limitedHistory = history
@@ -124,23 +154,17 @@ final class NfcScanController extends ChangeNotifier
             'could not be rewritten: ${ErrorText.clean(error)}',
             code: 'storage.history.privacy_rewrite.failed',
           );
+          return (loaded: true, complete: false);
         }
       }
+      return (loaded: true, complete: true);
     } on Object catch (error) {
       _setError(
         'Could not load saved history: ${ErrorText.clean(error)}',
         code: 'storage.history.load.failed',
       );
+      return (loaded: false, complete: false);
     }
-    await refreshAvailability();
-    _initialized = true;
-    _addDiagnostic(
-      AppDiagnosticLevel.info,
-      'app.initialize.complete',
-      'TagVerity initialized',
-      data: <String, Object?>{'historyCount': _history.length},
-    );
-    _notify();
   }
 
   Future<NfcSupportStatus> refreshAvailability() async {
@@ -178,8 +202,28 @@ final class NfcScanController extends ChangeNotifier
     return status;
   }
 
+  bool _requireKnownPrivacySettings(String code) {
+    if (!_historyLoadDeferredForSettings) {
+      return true;
+    }
+    _batchAutoContinue = false;
+    _setError(
+      'Saved privacy settings could not be loaded. Open Settings, choose the '
+      'privacy options you want, then apply them to saved history before '
+      'scanning.',
+      code: code,
+      level: AppDiagnosticLevel.warning,
+    );
+    return false;
+  }
+
   Future<void> startScan({bool addToBatch = false}) async {
     if (_disposed || _isScanning || _scanStopInProgress) {
+      return;
+    }
+    if (!_requireKnownPrivacySettings(
+      'nfc.scan.privacy_settings_unavailable',
+    )) {
       return;
     }
     if (settingsBusy) {
@@ -277,6 +321,9 @@ final class NfcScanController extends ChangeNotifier
   }
 
   Future<void> startContinuousBatchScan() async {
+    if (!_requireKnownPrivacySettings('batch.privacy_settings_unavailable')) {
+      return;
+    }
     if (settingsBusy) {
       _batchAutoContinue = false;
       _setError(
@@ -330,6 +377,9 @@ final class NfcScanController extends ChangeNotifier
   }
 
   Future<void> startBatchScan() async {
+    if (!_requireKnownPrivacySettings('batch.privacy_settings_unavailable')) {
+      return;
+    }
     if (settingsBusy) {
       _batchAutoContinue = false;
       _setError(
@@ -358,6 +408,9 @@ final class NfcScanController extends ChangeNotifier
   }
 
   void startBatchSession() {
+    if (!_requireKnownPrivacySettings('batch.privacy_settings_unavailable')) {
+      return;
+    }
     if (settingsBusy) {
       _batchAutoContinue = false;
       _setError(
@@ -597,6 +650,18 @@ final class NfcScanController extends ChangeNotifier
   Future<bool> updateSettings(
     ScanSettings Function(ScanSettings current) transform,
   ) {
+    return _enqueueSettingsMutation(
+      () => _applySettings(transform(_settings)),
+      failureMessage: 'Could not apply settings',
+      failureCode: 'settings.update.failed',
+    );
+  }
+
+  Future<bool> _enqueueSettingsMutation(
+    Future<bool> Function() action, {
+    required String failureMessage,
+    required String failureCode,
+  }) {
     final Completer<bool> completer = Completer<bool>();
     _pendingSettingsMutations++;
     _notify();
@@ -606,12 +671,11 @@ final class NfcScanController extends ChangeNotifier
           completer.complete(false);
           return;
         }
-        final bool result = await _applySettings(transform(_settings));
-        completer.complete(result);
+        completer.complete(await action());
       } on Object catch (error) {
         _setError(
-          'Could not apply settings: ${ErrorText.clean(error)}',
-          code: 'settings.update.failed',
+          '$failureMessage: ${ErrorText.clean(error)}',
+          code: failureCode,
         );
         completer.complete(false);
       } finally {
@@ -641,7 +705,7 @@ final class NfcScanController extends ChangeNotifier
       );
       return false;
     }
-    if (disablingSensitiveRetention) {
+    if (!_historyLoadDeferredForSettings && disablingSensitiveRetention) {
       // Never re-expose sensitive data in this running session. A queued disk
       // rewrite will run after any scan/history write already in flight.
       _history = _history.map(_historySafeScan).toList(growable: false);
@@ -664,7 +728,16 @@ final class NfcScanController extends ChangeNotifier
         return false;
       }
     }
-    _errorMessage = null;
+    if (_historyLoadDeferredForSettings) {
+      _setError(
+        'Privacy settings updated. Saved history is still hidden; apply the '
+        'current privacy settings to saved history before scanning.',
+        code: 'storage.history.recovery_required',
+        level: AppDiagnosticLevel.warning,
+      );
+    } else {
+      _errorMessage = null;
+    }
     _addDiagnostic(
       AppDiagnosticLevel.info,
       'settings.updated',
@@ -681,6 +754,84 @@ final class NfcScanController extends ChangeNotifier
     return true;
   }
 
+  Future<bool> applyCurrentPrivacySettingsToSavedHistory() {
+    if (_disposed) {
+      return Future<bool>.value(false);
+    }
+    if (!_historyLoadDeferredForSettings) {
+      return Future<bool>.value(true);
+    }
+    if (historyBusy) {
+      _setError(
+        'Wait for the pending history update before recovering saved history.',
+        code: 'storage.history.recovery.busy',
+        level: AppDiagnosticLevel.warning,
+      );
+      return Future<bool>.value(false);
+    }
+    return _enqueueSettingsMutation(
+      () async {
+        if (!_historyLoadDeferredForSettings) {
+          return true;
+        }
+        if (historyBusy) {
+          _setError(
+            'Wait for the pending history update before recovering saved history.',
+            code: 'storage.history.recovery.busy',
+            level: AppDiagnosticLevel.warning,
+          );
+          return false;
+        }
+        try {
+          // Establish the complete current policy first. This also repairs a
+          // corrupt/unreadable settings value when the user explicitly chooses
+          // to recover saved history.
+          await _repository.saveSettings(_settings);
+        } on Object catch (error) {
+          _setError(
+            'Could not save the current privacy settings: '
+            '${ErrorText.clean(error)}',
+            code: 'storage.history.recovery.settings_save.failed',
+          );
+          return false;
+        }
+        final ({bool loaded, bool complete}) recovery =
+            await _loadHistoryForCurrentSettings();
+        if (!recovery.loaded) {
+          return false;
+        }
+        _historyLoadDeferredForSettings = false;
+        if (recovery.complete) {
+          _errorMessage = null;
+          _addDiagnostic(
+            AppDiagnosticLevel.info,
+            'storage.history.load.recovered',
+            'Saved history recovered using the current privacy settings.',
+            data: <String, Object?>{'historyCount': _history.length},
+          );
+        }
+        _notify();
+        return recovery.complete;
+      },
+      failureMessage: 'Could not recover saved history',
+      failureCode: 'storage.history.recovery.failed',
+    );
+  }
+
+  bool _requireHistoryRecovered(String action) {
+    if (!_historyLoadDeferredForSettings) {
+      return true;
+    }
+    _setError(
+      'Saved history is hidden until the current privacy settings '
+      'are applied. Recover history before $action.',
+      code: 'storage.history.recovery_required',
+      level: AppDiagnosticLevel.warning,
+      data: <String, Object?>{'action': action},
+    );
+    return false;
+  }
+
   Future<bool> deleteHistoryItem(String id) {
     return _mutateHistoryPersisted(
       'Delete history item',
@@ -691,6 +842,9 @@ final class NfcScanController extends ChangeNotifier
   }
 
   Future<bool> clearHistory() async {
+    if (!_requireHistoryRecovered('clearing it')) {
+      return false;
+    }
     try {
       await _enqueueHistoryMutation(() async {
         await _repository.clearHistory();
@@ -720,6 +874,9 @@ final class NfcScanController extends ChangeNotifier
     String action,
     List<NfcScan> Function(List<NfcScan> current) transform,
   ) async {
+    if (!_requireHistoryRecovered(action.toLowerCase())) {
+      return false;
+    }
     try {
       await _enqueueHistoryMutation(() async {
         final List<NfcScan> nextHistory = transform(_history);

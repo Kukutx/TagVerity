@@ -86,6 +86,100 @@ void main() {
     expect(controller.settings.saveRawUidInHistory, isTrue);
     expect(repository.settings.saveRawUidInHistory, isTrue);
   });
+  testWidgets('recovery toggles do not claim hidden history was scrubbed', (
+    WidgetTester tester,
+  ) async {
+    final _WidgetRepository repository = _WidgetRepository(
+      failLoadSettings: true,
+      initialHistory: <NfcScan>[_stressScan()],
+    );
+    final NfcScanController controller = await _controller(
+      repository: repository,
+    );
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(TagVerityApp(controller: controller));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.settings_rounded));
+    await tester.pumpAndSettle();
+
+    final Finder rawUidToggle = find.text('Save raw UID in history');
+    await tester.scrollUntilVisible(rawUidToggle, 200);
+    await tester.pumpAndSettle();
+    await tester.tap(rawUidToggle);
+    await tester.pumpAndSettle();
+    expect(find.text('Save raw UID?'), findsOneWidget);
+    await tester.tap(find.text('Enable'));
+    await tester.pumpAndSettle();
+    expect(controller.settings.saveRawUidInHistory, isTrue);
+    expect(controller.privacySettingsRecoveryRequired, isTrue);
+
+    await tester.tap(rawUidToggle);
+    await tester.pumpAndSettle();
+
+    expect(controller.settings.saveRawUidInHistory, isFalse);
+    expect(controller.privacySettingsRecoveryRequired, isTrue);
+    expect(controller.errorMessage, contains('still hidden'));
+    expect(
+      find.text('Setting disabled; matching saved data was removed'),
+      findsNothing,
+    );
+  });
+
+  testWidgets(
+    'settings recovery flow stays usable on a narrow large-text screen',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(320, 720);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+      final _WidgetRepository repository = _WidgetRepository(
+        failLoadSettings: true,
+        initialHistory: <NfcScan>[_stressScan()],
+      );
+      final NfcScanController controller = await _controller(
+        repository: repository,
+      );
+      addTearDown(controller.dispose);
+
+      await tester.pumpWidget(TagVerityApp(controller: controller));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.settings_rounded));
+      await tester.pumpAndSettle();
+
+      expect(controller.privacySettingsRecoveryRequired, isTrue);
+      expect(controller.history, isEmpty);
+
+      final Finder recoveryMessage = find.textContaining(
+        'Saved privacy settings could not be read',
+      );
+      await tester.scrollUntilVisible(recoveryMessage, 200);
+      await tester.pumpAndSettle();
+      expect(recoveryMessage, findsOneWidget);
+
+      final Finder applyButton = find.text(
+        'Apply privacy settings to saved history',
+      );
+      await tester.scrollUntilVisible(applyButton, 200);
+      await tester.pumpAndSettle();
+      expect(applyButton, findsOneWidget);
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(applyButton);
+      await tester.pumpAndSettle();
+
+      expect(controller.privacySettingsRecoveryRequired, isFalse);
+      expect(
+        find.textContaining('Saved history recovered using'),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('core UI fits a narrow phone surface without exceptions', (
     WidgetTester tester,
   ) async {
@@ -251,15 +345,36 @@ final class _WidgetReader implements NfcReaderService {
 }
 
 final class _WidgetRepository implements ScanHistoryRepository {
+  _WidgetRepository({
+    this.failLoadSettings = false,
+    List<NfcScan> initialHistory = const <NfcScan>[],
+  }) : history = List<NfcScan>.of(initialHistory);
+
+  final bool failLoadSettings;
+  List<NfcScan> history;
   ScanSettings settings = const ScanSettings();
+
   @override
-  Future<void> clearHistory() async {}
+  Future<void> clearHistory() async {
+    history = <NfcScan>[];
+  }
+
   @override
-  Future<List<NfcScan>> loadHistory() async => const <NfcScan>[];
+  Future<List<NfcScan>> loadHistory() async => List<NfcScan>.of(history);
+
   @override
-  Future<ScanSettings> loadSettings() async => settings;
+  Future<ScanSettings> loadSettings() async {
+    if (failLoadSettings) {
+      throw const FormatException('corrupt settings');
+    }
+    return settings;
+  }
+
   @override
-  Future<void> saveHistory(List<NfcScan> scans) async {}
+  Future<void> saveHistory(List<NfcScan> scans) async {
+    history = List<NfcScan>.of(scans);
+  }
+
   @override
   Future<void> saveSettings(ScanSettings value) async {
     settings = value;

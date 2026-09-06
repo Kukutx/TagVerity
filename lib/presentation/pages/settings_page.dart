@@ -17,6 +17,8 @@ class SettingsPage extends StatelessWidget {
       builder: (BuildContext context, Widget? child) {
         final ScanSettings settings = controller.settings;
         final bool settingsBusy = controller.settingsBusy;
+        final bool recoveryRequired =
+            controller.privacySettingsRecoveryRequired;
         return ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
           children: <Widget>[
@@ -45,6 +47,16 @@ class SettingsPage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
+                  if (recoveryRequired) ...<Widget>[
+                    const Text(
+                      'Saved privacy settings could not be read, so saved '
+                      'history is hidden and scanning is paused. Choose the '
+                      'privacy options you want below, then apply the complete '
+                      'policy to recover history. Applying a stricter policy '
+                      'can permanently remove data that policy does not retain.',
+                    ),
+                    const SizedBox(height: 8),
+                  ],
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Save raw UID in history'),
@@ -103,10 +115,36 @@ class SettingsPage extends StatelessWidget {
                             ),
                           ),
                   ),
+                  if (recoveryRequired) ...<Widget>[
+                    const SizedBox(height: 8),
+                    FilledButton.icon(
+                      onPressed: settingsBusy || controller.historyBusy
+                          ? null
+                          : () async {
+                              final bool recovered = await controller
+                                  .applyCurrentPrivacySettingsToSavedHistory();
+                              if (recovered && context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Saved history recovered using the '
+                                      'current privacy settings',
+                                    ),
+                                  ),
+                                );
+                              }
+                            },
+                      icon: const Icon(Icons.restore_rounded),
+                      label: const Text(
+                        'Apply privacy settings to saved history',
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 8),
                   OutlinedButton.icon(
                     onPressed:
-                        settingsBusy ||
+                        recoveryRequired ||
+                            settingsBusy ||
                             controller.historyBusy ||
                             controller.history.isEmpty
                         ? null
@@ -184,7 +222,10 @@ class SettingsPage extends StatelessWidget {
       }
     }
     final bool saved = await controller.updateSettings(update);
-    if (saved && !value && context.mounted) {
+    if (saved &&
+        !value &&
+        !controller.privacySettingsRecoveryRequired &&
+        context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Setting disabled; matching saved data was removed'),
