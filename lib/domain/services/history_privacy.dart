@@ -6,6 +6,7 @@ import '../models/nfc_scan.dart';
 
 abstract final class HistoryPrivacy {
   static final RegExp _legacyLinkableEventId = RegExp(r'^\d+-[0-9a-fA-F]{12}$');
+  static final RegExp _uidBytePattern = RegExp(r'^[0-9A-Fa-f]{2}$');
 
   static bool eventIdNeedsScrub(String id) =>
       _legacyLinkableEventId.hasMatch(id);
@@ -19,6 +20,21 @@ abstract final class HistoryPrivacy {
         ? 'migrated'
         : 'migrated-${ordinal + 1}';
     return 'scan-$timestamp-$suffix';
+  }
+
+  static String? comparableFingerprintFromUidHex(String? uidHex) {
+    if (uidHex == null || uidHex.isEmpty) {
+      return null;
+    }
+    final List<String> parts = uidHex.split(':');
+    if (parts.isEmpty ||
+        parts.any((String part) => !_uidBytePattern.hasMatch(part))) {
+      return null;
+    }
+    final List<int> bytes = parts
+        .map((String part) => int.parse(part, radix: 16))
+        .toList(growable: false);
+    return sha256.convert(bytes).toString();
   }
 
   static String sessionFingerprint(NfcScan scan, {String? eventId}) {

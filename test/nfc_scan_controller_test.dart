@@ -7,6 +7,7 @@ import 'package:tagverity/domain/models/scan_settings.dart';
 import 'package:tagverity/domain/models/tag_identity_stability.dart';
 import 'package:tagverity/domain/repositories/scan_history_repository.dart';
 import 'package:tagverity/domain/services/export_service.dart';
+import 'package:tagverity/domain/services/history_privacy.dart';
 import 'package:tagverity/presentation/controllers/nfc_scan_controller.dart';
 
 void main() {
@@ -34,6 +35,58 @@ void main() {
     );
     expect(controller.history.single.details['nfca.sak'], '0x00');
     expect(repository.history.single.uidHex, isNull);
+    controller.dispose();
+  });
+
+  test('raw UID retention keeps comparable identity semantics', () async {
+    final _MemoryRepository repository = _MemoryRepository()
+      ..settings = const ScanSettings(saveRawUidInHistory: true);
+    final NfcScanController controller = NfcScanController(
+      readerService: _FakeReaderService(<NfcScan>[
+        _scan('scan-raw-uid', 'placeholder-fingerprint'),
+      ]),
+      repository: repository,
+      exportService: _FakeExportService(),
+    );
+
+    await controller.initialize();
+    await controller.startScan();
+
+    final NfcScan saved = controller.history.single;
+    expect(saved.uidHex, '04:AA:BB:CC');
+    expect(
+      saved.uidFingerprint,
+      HistoryPrivacy.comparableFingerprintFromUidHex(saved.uidHex),
+    );
+    expect(saved.identityStability, TagIdentityStability.stable);
+    controller.dispose();
+  });
+
+  test('startup repairs old raw UID history identity semantics', () async {
+    final NfcScan oldSaved = _scan(
+      'saved-raw-uid',
+      'old-session-fingerprint',
+      identityStability: TagIdentityStability.sessionOnly,
+    ).copyWith(ndefRecords: const <NdefRecordInfo>[]);
+    final _MemoryRepository repository = _MemoryRepository()
+      ..settings = const ScanSettings(saveRawUidInHistory: true)
+      ..history = <NfcScan>[oldSaved];
+    final NfcScanController controller = NfcScanController(
+      readerService: _FakeReaderService(const <NfcScan>[]),
+      repository: repository,
+      exportService: _FakeExportService(),
+    );
+
+    await controller.initialize();
+
+    final NfcScan repaired = controller.history.single;
+    expect(repaired.uidHex, '04:AA:BB:CC');
+    expect(
+      repaired.uidFingerprint,
+      HistoryPrivacy.comparableFingerprintFromUidHex(repaired.uidHex),
+    );
+    expect(repaired.identityStability, TagIdentityStability.stable);
+    expect(repository.history.single.uidFingerprint, repaired.uidFingerprint);
     controller.dispose();
   });
 

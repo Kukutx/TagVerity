@@ -171,6 +171,12 @@ void main() {
       exportService: _NoopExportService(),
     );
     await controller.initialize();
+    final String comparableFingerprint =
+        controller.history.single.uidFingerprint;
+    expect(
+      controller.history.single.identityStability,
+      TagIdentityStability.stable,
+    );
     final bool saved = await controller.updateSettings(
       (ScanSettings current) => current.copyWith(saveRawUidInHistory: false),
     );
@@ -178,6 +184,18 @@ void main() {
     expect(controller.settings.saveRawUidInHistory, isFalse);
     expect(controller.history.single.uidHex, isNull);
     expect(repository.history.single.uidHex, isNull);
+    expect(
+      controller.history.single.identityStability,
+      TagIdentityStability.sessionOnly,
+    );
+    expect(
+      controller.history.single.uidFingerprint,
+      isNot(comparableFingerprint),
+    );
+    expect(
+      repository.history.single.uidFingerprint,
+      controller.history.single.uidFingerprint,
+    );
     controller.dispose();
   });
   test('privacy setting stays disabled when historical scrub fails', () async {

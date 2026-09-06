@@ -59,11 +59,51 @@ void main() {
     expect(controller.supportStatus, NfcSupportStatus.disabled);
 
     older.complete(NfcSupportStatus.enabled);
-    expect(await olderRefresh, NfcSupportStatus.enabled);
+    expect(await olderRefresh, NfcSupportStatus.disabled);
     expect(controller.supportStatus, NfcSupportStatus.disabled);
 
     controller.dispose();
   });
+
+  test(
+    'stale availability failures do not create misleading diagnostics',
+    () async {
+      final _SequencedAvailabilityReader reader =
+          _SequencedAvailabilityReader();
+      final NfcScanController controller = _controller(
+        reader,
+        _MemoryRepository(),
+      );
+      await controller.initialize();
+
+      final Completer<NfcSupportStatus> older = Completer<NfcSupportStatus>();
+      final Completer<NfcSupportStatus> newer = Completer<NfcSupportStatus>();
+      reader.responses
+        ..add(older.future)
+        ..add(newer.future);
+      final int failuresBefore = controller.diagnosticEvents
+          .where((event) => event.code == 'nfc.availability.check.failed')
+          .length;
+
+      final Future<NfcSupportStatus> olderRefresh = controller
+          .refreshAvailability();
+      final Future<NfcSupportStatus> newerRefresh = controller
+          .refreshAvailability();
+
+      newer.complete(NfcSupportStatus.enabled);
+      expect(await newerRefresh, NfcSupportStatus.enabled);
+      older.completeError(StateError('stale availability failure'));
+      expect(await olderRefresh, NfcSupportStatus.enabled);
+      expect(
+        controller.diagnosticEvents
+            .where((event) => event.code == 'nfc.availability.check.failed')
+            .length,
+        failuresBefore,
+      );
+
+      controller.dispose();
+    },
+  );
 
   test('scanning is blocked while a settings write is pending', () async {
     final _BlockingSettingsRepository repository =

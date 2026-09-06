@@ -218,6 +218,82 @@ void main() {
       await expectLater(repository.loadHistory(), throwsFormatException);
     });
 
+    test('invalid persisted raw UID format is rejected', () async {
+      final Map<String, Object?> json = _scan().toJson();
+      json['uidHex'] = 'not-a-byte-sequence';
+      final store = InMemorySharedPreferencesAsync.withData(<String, Object>{
+        'tagverity.history.v2': jsonEncode(<Object?>[json]),
+      });
+      SharedPreferencesAsyncPlatform.instance = store;
+      final repository = SharedPreferencesScanHistoryRepository(
+        preferences: SharedPreferencesAsync(),
+      );
+
+      await expectLater(repository.loadHistory(), throwsFormatException);
+    });
+
+    test('duplicate persisted scan IDs are rejected', () async {
+      final Map<String, Object?> first = _scan(id: 'duplicate-id').toJson();
+      final Map<String, Object?> second = _scan(id: 'duplicate-id').toJson();
+      final store = InMemorySharedPreferencesAsync.withData(<String, Object>{
+        'tagverity.history.v2': jsonEncode(<Object?>[first, second]),
+      });
+      SharedPreferencesAsyncPlatform.instance = store;
+      final repository = SharedPreferencesScanHistoryRepository(
+        preferences: SharedPreferencesAsync(),
+      );
+
+      await expectLater(repository.loadHistory(), throwsFormatException);
+    });
+
+    test('duplicate persisted NDEF indexes are rejected', () async {
+      final Map<String, Object?> json = _scan().toJson();
+      final List<dynamic> records = json['ndefRecords']! as List<dynamic>;
+      json['ndefRecords'] = <Object?>[
+        records.single,
+        <String, Object?>{
+          ...(records.single as Map<String, Object?>),
+          'index': 0,
+        },
+      ];
+      final store = InMemorySharedPreferencesAsync.withData(<String, Object>{
+        'tagverity.history.v2': jsonEncode(<Object?>[json]),
+      });
+      SharedPreferencesAsyncPlatform.instance = store;
+      final repository = SharedPreferencesScanHistoryRepository(
+        preferences: SharedPreferencesAsync(),
+      );
+
+      await expectLater(repository.loadHistory(), throwsFormatException);
+    });
+
+    test(
+      'invalid outgoing history is rejected before replacing saved data',
+      () async {
+        final store = InMemorySharedPreferencesAsync.withData(
+          <String, Object>{},
+        );
+        SharedPreferencesAsyncPlatform.instance = store;
+        final repository = SharedPreferencesScanHistoryRepository(
+          preferences: SharedPreferencesAsync(),
+        );
+        final NfcScan original = _scan(id: 'original');
+        await repository.saveHistory(<NfcScan>[original]);
+
+        await expectLater(
+          repository.saveHistory(<NfcScan>[
+            _scan(id: 'duplicate-write'),
+            _scan(id: 'duplicate-write'),
+          ]),
+          throwsFormatException,
+        );
+
+        final List<NfcScan> history = await repository.loadHistory();
+        expect(history, hasLength(1));
+        expect(history.single.id, 'original');
+      },
+    );
+
     test('duplicate persisted technologies are rejected', () async {
       final Map<String, Object?> json = _scan().toJson();
       json['technologies'] = <Object?>['NfcA', 'NfcA'];

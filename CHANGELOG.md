@@ -10,16 +10,16 @@
 ### Deep-audit hardening
 - Added scan request/session generation guards so rapid taps, stop-during-start, stale native callbacks, and old NFC sessions cannot corrupt a newer scan.
 - Serialized all history persistence so scan saves, delete, clear, scrub, and privacy rewrites cannot overwrite each other from stale snapshots; one failed queued write no longer poisons later operations.
-- Default saved history no longer retains a comparable tag fingerprint when technical identifiers are disabled; it keeps the scan event ID but replaces tag identity with a session-only per-scan fingerprint.
+- Default saved history no longer retains a comparable tag fingerprint when neither raw UID nor technical identifiers are retained; it keeps the scan event ID but replaces tag identity with a session-only per-scan fingerprint. Raw UID opt-in keeps the matching SHA-256 fingerprint/comparable identity so the saved identity fields remain consistent.
 - Legacy pre-TagVerity history now replaces UID-derived stable fingerprints during migration instead of briefly carrying them into the current history key.
 - NFC-F manufacturer/PMm-style metadata is now treated as linkable technical data and removed from privacy-minimized history.
-- Persisted history validation now enforces the public export schema's SHA-256 fingerprint shape and unique technology list.
+- Persisted history validation now enforces SHA-256 fingerprint shape, byte-formatted raw UIDs, unique technologies, unique scan IDs and unique per-scan NDEF indexes on load; the same validation now runs before saving so malformed outgoing history cannot replace a known-good copy.
 - Legacy scan IDs that embedded the first 12 hexadecimal characters of a UID-derived fingerprint are replaced with privacy-safe event IDs during migration/startup cleanup.
 - Legacy warning strings and malformed-JSON errors no longer carry raw platform or persisted payload text into saved history/global diagnostics.
 - Once the current history key is authoritative, the stale legacy key is overwritten with an empty value before deletion so a failed remove cannot strand raw UID/NDEF data.
 - Technical metadata retention now uses an explicit reviewed allowlist in both default and opt-in modes; opting in adds only known linkable keys, while unknown/future detail keys remain excluded until explicitly cataloged.
 - Android app-data backup/device-transfer paths are explicitly disabled/excluded, including the DataStore/file and legacy SharedPreferences domains.
-- Added latest-request-wins guards for overlapping NFC availability refreshes so stale results cannot overwrite newer state.
+- Added latest-request-wins guards for overlapping NFC availability refreshes so stale results cannot overwrite newer state, return stale gate decisions to callers, or emit stale failure diagnostics.
 - Added startup privacy enforcement so previously retained sensitive history is hidden immediately and rewritten to match current settings.
 - Added standard NFC Forum Type 4 / NDEF AID `D2760000850101` for iOS without claiming arbitrary ISO 7816 application discovery.
 - Added recursive diagnostics sanitization, clean platform-error text, NFC availability timeout/failure handling, and false-success protection for clipboard copies.

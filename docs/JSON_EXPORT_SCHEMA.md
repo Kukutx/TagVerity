@@ -30,6 +30,6 @@ The formal JSON Schema is `docs/nfc-scan-export.schema.json`.
 
 ## Privacy note
 
-Current-scan export can contain the raw UID and NDEF content visible on screen. History export contains only what history retained under the user's privacy settings.
+Current-scan export can contain the raw UID and NDEF content visible on screen. History export contains only what history retained under the user's privacy settings. When raw UID retention is enabled, the history export also keeps the comparable SHA-256 fingerprint derived from that UID so the exported identity fields do not contradict each other.
 
 Batch CSV is a separate compact QA export and contains scan time, short fingerprint, identity stability, technologies, NDEF record count, assessment status, warning count, and duplicate status. Session-only identities export duplicate status as `unknown`.
