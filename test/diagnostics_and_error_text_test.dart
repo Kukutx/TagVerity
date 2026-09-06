@@ -89,7 +89,7 @@ void main() {
     final String cleaned = ErrorText.clean(
       PlatformException(
         code: 'native',
-        message: '  first\nsecond\t${'x' * 700}\u0000tail  ',
+        message: '  first\nsecond\t${'x' * 700}\u0000\u009Btail  ',
       ),
     );
 
@@ -98,6 +98,7 @@ void main() {
     expect(cleaned, isNot(contains('\n')));
     expect(cleaned, isNot(contains('\t')));
     expect(cleaned, isNot(contains('\u0000')));
+    expect(cleaned, isNot(contains('\u009B')));
     expect(cleaned, endsWith('…'));
     expect(ErrorText.clean('\n\t'), 'Unexpected error.');
   });

@@ -2,7 +2,9 @@ import 'package:flutter/services.dart';
 
 abstract final class ErrorText {
   static const int maximumCharacters = 500;
-  static final RegExp _controlCharacters = RegExp(r'[\u0000-\u001F\u007F]+');
+  static final RegExp _controlCharacters = RegExp(
+    r'[\u0000-\u001F\u007F-\u009F]+',
+  );
   static final RegExp _whitespace = RegExp(r'\s+');
 
   static String clean(Object error) {
