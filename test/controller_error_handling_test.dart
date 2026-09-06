@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -703,6 +704,58 @@ void main() {
     expect(controller.errorMessage, contains('Could not delete saved history'));
     controller.dispose();
   });
+
+  test(
+    'diagnostics export marks privacy recovery and hidden history',
+    () async {
+      final TestDefaultBinaryMessenger messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      String? copiedText;
+      messenger.setMockMethodCallHandler(SystemChannels.platform, (
+        MethodCall call,
+      ) async {
+        if (call.method == 'Clipboard.setData') {
+          copiedText =
+              (call.arguments as Map<Object?, Object?>)['text'] as String?;
+        }
+        return null;
+      });
+      addTearDown(() {
+        messenger.setMockMethodCallHandler(SystemChannels.platform, null);
+      });
+
+      final _MemoryRepository repository = _MemoryRepository(
+        initialHistory: <NfcScan>[_scan()],
+        failLoadSettings: true,
+      );
+      final NfcScanController controller = NfcScanController(
+        readerService: _Reader(),
+        repository: repository,
+        exportService: _NoopExportService(),
+      );
+      await controller.initialize();
+
+      expect(controller.privacySettingsRecoveryRequired, isTrue);
+      expect(controller.history, isEmpty);
+      expect(repository.loadHistoryCalls, 0);
+      expect(await controller.copyDiagnosticsJson(), isTrue);
+
+      final Map<String, dynamic> payload =
+          jsonDecode(copiedText!) as Map<String, dynamic>;
+      expect(payload['schemaVersion'], 4);
+      expect(payload['privacySettingsRecoveryRequired'], isTrue);
+      expect(payload['historyCount'], 0);
+      expect(payload['settings'], const ScanSettings().toJson());
+      expect(
+        (payload['events'] as List<dynamic>).cast<Map<String, dynamic>>().any(
+          (Map<String, dynamic> event) =>
+              event['code'] == 'storage.history.load.deferred',
+        ),
+        isTrue,
+      );
+      controller.dispose();
+    },
+  );
 
   test('clipboard failures do not report false success', () async {
     final TestDefaultBinaryMessenger messenger =

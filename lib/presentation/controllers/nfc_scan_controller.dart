@@ -1061,20 +1061,15 @@ final class NfcScanController extends ChangeNotifier
   }
 
   Future<bool> copyDiagnosticsJson() async {
-    final Map<String, Object?> payload = <String, Object?>{
-      'schemaVersion': AppConstants.diagnosticsSchemaVersion,
-      'app': AppConstants.appName,
-      'appVersion': AppConstants.appVersion,
-      'exportedAt': DateTime.now().toUtc().toIso8601String(),
-      'supportStatus': _supportStatus.name,
-      'isScanning': _isScanning,
-      'historyCount': _history.length,
-      'batchCount': _batchScans.length,
-      'settings': _settings.toJson(),
-      'events': _diagnostics.events
-          .map((DiagnosticEvent event) => event.toJson())
-          .toList(growable: false),
-    };
+    final Map<String, Object?> payload = ReportEncoder.diagnosticsEnvelope(
+      supportStatus: _supportStatus,
+      isScanning: _isScanning,
+      historyCount: _history.length,
+      batchCount: _batchScans.length,
+      settings: _settings,
+      privacySettingsRecoveryRequired: _historyLoadDeferredForSettings,
+      diagnostics: _diagnostics,
+    );
     return _copyText(
       ReportEncoder.prettyJson(payload),
       label: 'diagnostics JSON',

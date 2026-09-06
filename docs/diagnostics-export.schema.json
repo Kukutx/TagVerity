@@ -13,20 +13,46 @@
     "isScanning",
     "historyCount",
     "batchCount",
+    "privacySettingsRecoveryRequired",
     "settings",
     "events"
   ],
   "properties": {
-    "schemaVersion": {"const": 3},
-    "app": {"type": "string"},
-    "appVersion": {"type": "string"},
-    "exportedAt": {"type": "string", "format": "date-time"},
-    "supportStatus": {
-      "enum": ["enabled", "disabled", "unsupported", "unknown"]
+    "schemaVersion": {
+      "const": 4
     },
-    "isScanning": {"type": "boolean"},
-    "historyCount": {"type": "integer", "minimum": 0},
-    "batchCount": {"type": "integer", "minimum": 0},
+    "app": {
+      "type": "string"
+    },
+    "appVersion": {
+      "type": "string"
+    },
+    "exportedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "supportStatus": {
+      "enum": [
+        "enabled",
+        "disabled",
+        "unsupported",
+        "unknown"
+      ]
+    },
+    "isScanning": {
+      "type": "boolean"
+    },
+    "historyCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "batchCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "privacySettingsRecoveryRequired": {
+      "type": "boolean"
+    },
     "settings": {
       "type": "object",
       "additionalProperties": false,
@@ -37,35 +63,191 @@
         "saveTechnicalIdentifiersInHistory"
       ],
       "properties": {
-        "readNdef": {"type": "boolean"},
-        "saveRawUidInHistory": {"type": "boolean"},
-        "saveNdefInHistory": {"type": "boolean"},
-        "saveTechnicalIdentifiersInHistory": {"type": "boolean"}
+        "readNdef": {
+          "type": "boolean"
+        },
+        "saveRawUidInHistory": {
+          "type": "boolean"
+        },
+        "saveNdefInHistory": {
+          "type": "boolean"
+        },
+        "saveTechnicalIdentifiersInHistory": {
+          "type": "boolean"
+        }
       }
     },
     "events": {
       "type": "array",
       "maxItems": 100,
-      "items": {"$ref": "#/$defs/event"}
+      "items": {
+        "$ref": "#/$defs/event"
+      }
     }
   },
   "$defs": {
     "event": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["timestamp", "level", "code", "message", "data"],
+      "required": [
+        "timestamp",
+        "level",
+        "code",
+        "message",
+        "data"
+      ],
       "properties": {
-        "timestamp": {"type": "string", "format": "date-time"},
-        "level": {"enum": ["info", "warning", "error"]},
-        "code": {"type": "string"},
-        "message": {"type": "string"},
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "level": {
+          "enum": [
+            "info",
+            "warning",
+            "error"
+          ]
+        },
+        "code": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "message": {
+          "type": "string",
+          "maxLength": 500
+        },
         "data": {
           "type": "object",
+          "maxProperties": 20,
+          "propertyNames": {
+            "type": "string",
+            "maxLength": 500
+          },
           "additionalProperties": {
-            "type": ["string", "number", "integer", "boolean", "null"]
+            "$ref": "#/$defs/diagnosticValue0"
           }
         }
       }
+    },
+    "diagnosticLeaf": {
+      "anyOf": [
+        {
+          "type": "string",
+          "maxLength": 500
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "diagnosticValue0": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/diagnosticLeaf"
+        },
+        {
+          "type": "object",
+          "maxProperties": 20,
+          "propertyNames": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/diagnosticValue1"
+          }
+        },
+        {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "$ref": "#/$defs/diagnosticValue1"
+          }
+        }
+      ]
+    },
+    "diagnosticValue1": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/diagnosticLeaf"
+        },
+        {
+          "type": "object",
+          "maxProperties": 20,
+          "propertyNames": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/diagnosticValue2"
+          }
+        },
+        {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "$ref": "#/$defs/diagnosticValue2"
+          }
+        }
+      ]
+    },
+    "diagnosticValue2": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/diagnosticLeaf"
+        },
+        {
+          "type": "object",
+          "maxProperties": 20,
+          "propertyNames": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/diagnosticValue3"
+          }
+        },
+        {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "$ref": "#/$defs/diagnosticValue3"
+          }
+        }
+      ]
+    },
+    "diagnosticValue3": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/diagnosticLeaf"
+        },
+        {
+          "type": "object",
+          "maxProperties": 20,
+          "propertyNames": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/diagnosticValue4"
+          }
+        },
+        {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "$ref": "#/$defs/diagnosticValue4"
+          }
+        }
+      ]
+    },
+    "diagnosticValue4": {
+      "$ref": "#/$defs/diagnosticLeaf"
     }
   }
 }

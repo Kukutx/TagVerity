@@ -2,8 +2,12 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tagverity/core/constants/app_constants.dart';
+import 'package:tagverity/domain/models/diagnostic_event.dart';
 import 'package:tagverity/domain/models/nfc_scan.dart';
+import 'package:tagverity/domain/models/nfc_support_status.dart';
+import 'package:tagverity/domain/models/scan_settings.dart';
 import 'package:tagverity/domain/models/tag_identity_stability.dart';
+import 'package:tagverity/domain/services/diagnostics_buffer.dart';
 import 'package:tagverity/domain/services/report_encoder.dart';
 
 void main() {
@@ -26,6 +30,47 @@ void main() {
 
     final String pretty = ReportEncoder.prettyJson(envelope);
     expect(() => jsonDecode(pretty), returnsNormally);
+  });
+
+  test('diagnostics envelope exposes v4 recovery semantics', () {
+    final DiagnosticsBuffer diagnostics = DiagnosticsBuffer();
+    diagnostics.add(
+      AppDiagnosticLevel.warning,
+      'storage.history.load.deferred',
+      'history hidden',
+      data: <String, Object?>{
+        'nested': <String, Object?>{'count': 1},
+      },
+    );
+
+    final Map<String, Object?> envelope = ReportEncoder.diagnosticsEnvelope(
+      supportStatus: NfcSupportStatus.unknown,
+      isScanning: false,
+      historyCount: 0,
+      batchCount: 2,
+      settings: const ScanSettings(),
+      privacySettingsRecoveryRequired: true,
+      diagnostics: diagnostics,
+    );
+
+    expect(envelope['schemaVersion'], 4);
+    expect(envelope['privacySettingsRecoveryRequired'], isTrue);
+    expect(envelope['historyCount'], 0);
+    expect(envelope['batchCount'], 2);
+    expect((envelope['events']! as List<Object?>), hasLength(1));
+    expect(() => jsonEncode(envelope), returnsNormally);
+    expect(
+      () => ReportEncoder.diagnosticsEnvelope(
+        supportStatus: NfcSupportStatus.enabled,
+        isScanning: false,
+        historyCount: -1,
+        batchCount: 0,
+        settings: const ScanSettings(),
+        privacySettingsRecoveryRequired: false,
+        diagnostics: diagnostics,
+      ),
+      throwsFormatException,
+    );
   });
 
   test('JSON export rejects scans that violate the public contract', () {

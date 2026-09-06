@@ -28,10 +28,11 @@ A green CI run does not replace physical NFC hardware testing.
 Verified on the maintainer machine without launching an emulator:
 - `dart run tool/validate_project.dart`: passed.
 - Release-metadata validator negative probes: passed for missing Android NFC permission, broadened FileProvider scope, broken iOS Type 4 AID, broken TAG entitlement, broken Xcode entitlement wiring, and removal of the CI no-INTERNET marker; each mutation failed validation and was restored.
+- Diagnostics-v4 validator negative probes: passed for a missing privacy-recovery field, event-cap drift, diagnostic string-bound drift, nested collection-limit drift, and nesting-depth drift; each mutation failed validation and the schema was restored.
 - strict maintainer bootstrap with `--strict-sdk --single-sdk`: passed against Flutter 3.47.1 / Dart 3.13.1.
 - `flutter analyze`: **0 issues**.
-- `flutter test --coverage`: **172/172 tests passed**.
-- Line coverage: **81.2% (1741/2145)**, above the enforced **75%** floor. Coverage growth is concentrated in controller/session concurrency, local persistence, privacy, accessibility, diagnostics, report encoding/contracts, and detail UI. Native tag-adapter lines that require real nfc_manager platform tag objects are explicitly excluded from LCOV and remain covered by compile gates plus the physical-device matrix.
+- `flutter test --coverage`: **175/175 tests passed**.
+- Line coverage: **81.8% (1762/2153)**, above the enforced **75%** floor. Coverage growth is concentrated in controller/session concurrency, local persistence, privacy, accessibility, diagnostics, report encoding/contracts, and detail UI. Native tag-adapter lines that require real nfc_manager platform tag objects are explicitly excluded from LCOV and remain covered by compile gates plus the physical-device matrix.
 - Widget coverage includes four-tab navigation, global error visibility, sensitive-setting confirmation, dark mode, **all four core tabs at 320px + 200% text scaling**, populated Inspect/Batch/History results at the same stress size, and a full Tag Details stress pass with technical/NDEF expansion.
 - Android debug APK compilation: passed.
 - Android debug AAB compilation with `android-arm,android-arm64`: passed.
@@ -79,10 +80,10 @@ The current direct dependencies are already at their latest resolvable versions.
 - Batch CSV repeated-ID status is self-contained: the encoder derives comparable fingerprint counts from the exact scans being exported and accepts no external `BatchSummary`, preventing stale/mismatched summary state from changing report semantics.
 - `NfcScan` collection fields are defensive immutable snapshots. Constructor/fromJson/copyWith inputs cannot mutate a completed scan later, direct getter mutation is rejected, and `toJson()` returns independent list/map copies so corruption-test/report DTO changes cannot back-mutate the source model.
 - Scan/history JSON export schema **v3**.
-- Diagnostics export schema **v3**.
+- Diagnostics export schema **v4**, including explicit privacy-recovery state and bounded nested diagnostic values aligned with runtime limits.
 - Native Android/iOS report sharing with failure reporting and 24-hour stale TagVerity temp-export cleanup; iOS exports use a TagVerity-specific temporary subdirectory.
 - Android release manifest disables app-data backup and both legacy/full-backup and Android 12+ extraction rules exclude app-private files/DataStore, preferences, databases, root, and external app data; the project validator enforces the rule wiring.
-- Privacy-safe diagnostics bounded by event count, string length, collection size, and nesting depth; recursively sanitized nested map/list values are immutable after retention so later consumers cannot rewrite a redacted event before export.
+- Privacy-safe diagnostics bounded by event count, string length, collection size, and nesting depth; recursively sanitized nested map/list values are immutable after retention, non-finite numbers are normalized before JSON encoding, and v4 exports explicitly identify privacy-settings recovery so hidden history counts are not misread.
 - Simplified Settings surface with advanced tag facts moved to per-scan details.
 - Current-tab-only page construction instead of rebuilding four always-mounted tab pages.
 ## Platform validation

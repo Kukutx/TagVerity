@@ -102,6 +102,26 @@ void main() {
     expect(jsonEncode(event.toJson()), before);
   });
 
+  test('diagnostics normalize non-finite numbers before JSON encoding', () {
+    final DiagnosticsBuffer buffer = DiagnosticsBuffer();
+    buffer.add(
+      AppDiagnosticLevel.warning,
+      'non-finite',
+      'non-finite numeric data',
+      data: <String, Object?>{
+        'nan': double.nan,
+        'positiveInfinity': double.infinity,
+        'negativeInfinity': double.negativeInfinity,
+      },
+    );
+
+    final String encoded = jsonEncode(buffer.events.single.toJson());
+    final Map<String, dynamic> decoded =
+        jsonDecode(encoded) as Map<String, dynamic>;
+    final Map<String, dynamic> data = decoded['data'] as Map<String, dynamic>;
+    expect(data.values, everyElement('[non-finite-number]'));
+  });
+
   test('diagnostics cap retains only the newest events', () {
     final DiagnosticsBuffer buffer = DiagnosticsBuffer();
     for (int index = 0; index < 120; index++) {

@@ -7,6 +7,9 @@ void main() {
       .readAsStringSync();
   final String scanContract = File('lib/domain/services/scan_contract.dart')
       .readAsStringSync();
+  final String diagnosticsBuffer = File(
+    'lib/domain/services/diagnostics_buffer.dart',
+  ).readAsStringSync();
   final String ciWorkflow = File('.github/workflows/ci.yml').readAsStringSync();
   final Map<String, dynamic> scanSchema = jsonDecode(
     File('docs/nfc-scan-export.schema.json').readAsStringSync(),
@@ -113,6 +116,121 @@ void main() {
   if (requiredSettings.length != expectedSettings.length ||
       !requiredSettings.containsAll(expectedSettings)) {
     _fail('Diagnostics schema settings no longer match ScanSettings.');
+  }
+
+  final Map<String, dynamic> diagnosticProperties =
+      diagnosticsSchema['properties'] as Map<String, dynamic>;
+  final Set<String> requiredDiagnosticFields =
+      (diagnosticsSchema['required'] as List<dynamic>)
+          .whereType<String>()
+          .toSet();
+  const Set<String> expectedDiagnosticFields = <String>{
+    'schemaVersion',
+    'app',
+    'appVersion',
+    'exportedAt',
+    'supportStatus',
+    'isScanning',
+    'historyCount',
+    'batchCount',
+    'privacySettingsRecoveryRequired',
+    'settings',
+    'events',
+  };
+  if (requiredDiagnosticFields.length != expectedDiagnosticFields.length ||
+      !requiredDiagnosticFields.containsAll(expectedDiagnosticFields)) {
+    _fail(
+      'Diagnostics schema top-level fields no longer match the runtime envelope.',
+    );
+  }
+  final int maximumDiagnosticEvents = _constantInt(
+    constants,
+    'maximumDiagnosticEvents',
+  );
+  final int maximumDiagnosticStringCharacters = _constantInt(
+    diagnosticsBuffer,
+    'maximumStringCharacters',
+  );
+  final int maximumDiagnosticCollectionItems = _constantInt(
+    diagnosticsBuffer,
+    'maximumCollectionItems',
+  );
+  final int maximumDiagnosticNestingDepth = _constantInt(
+    diagnosticsBuffer,
+    'maximumNestingDepth',
+  );
+  final Map<String, dynamic> eventList =
+      diagnosticProperties['events'] as Map<String, dynamic>;
+  if (eventList['maxItems'] != maximumDiagnosticEvents) {
+    _fail('Diagnostics event cap no longer matches AppConstants.');
+  }
+  final Map<String, dynamic> diagnosticDefinitions =
+      diagnosticsSchema[r'$defs'] as Map<String, dynamic>;
+  final Map<String, dynamic> diagnosticEvent =
+      diagnosticDefinitions['event'] as Map<String, dynamic>;
+  final Map<String, dynamic> diagnosticEventProperties =
+      diagnosticEvent['properties'] as Map<String, dynamic>;
+  final Map<String, dynamic> diagnosticData =
+      diagnosticEventProperties['data'] as Map<String, dynamic>;
+  if ((diagnosticEventProperties['code']
+              as Map<String, dynamic>)['maxLength'] !=
+          maximumDiagnosticStringCharacters ||
+      (diagnosticEventProperties['message']
+              as Map<String, dynamic>)['maxLength'] !=
+          maximumDiagnosticStringCharacters ||
+      diagnosticData['maxProperties'] != maximumDiagnosticCollectionItems ||
+      (diagnosticData['propertyNames'] as Map<String, dynamic>)['maxLength'] !=
+          maximumDiagnosticStringCharacters ||
+      (diagnosticData['additionalProperties']
+              as Map<String, dynamic>)[r'$ref'] !=
+          r'#/$defs/diagnosticValue0') {
+    _fail('Diagnostics event schema bounds no longer match DiagnosticsBuffer.');
+  }
+  final List<Map<String, dynamic>> leafOptions =
+      ((diagnosticDefinitions['diagnosticLeaf']
+                  as Map<String, dynamic>)['anyOf']
+              as List<dynamic>)
+          .cast<Map<String, dynamic>>();
+  final Map<String, dynamic> stringLeaf = leafOptions.firstWhere(
+    (Map<String, dynamic> option) => option['type'] == 'string',
+  );
+  if (stringLeaf['maxLength'] != maximumDiagnosticStringCharacters) {
+    _fail('Diagnostics leaf string bound no longer matches DiagnosticsBuffer.');
+  }
+  for (int level = 0; level < maximumDiagnosticNestingDepth; level++) {
+    final List<Map<String, dynamic>> options =
+        ((diagnosticDefinitions['diagnosticValue$level']
+                    as Map<String, dynamic>)['anyOf']
+                as List<dynamic>)
+            .cast<Map<String, dynamic>>();
+    if (!options.any(
+      (Map<String, dynamic> option) =>
+          option[r'$ref'] == r'#/$defs/diagnosticLeaf',
+    )) {
+      _fail('Diagnostics value depth $level lost the primitive leaf option.');
+    }
+    final Map<String, dynamic> objectOption = options.firstWhere(
+      (Map<String, dynamic> option) => option['type'] == 'object',
+    );
+    final Map<String, dynamic> arrayOption = options.firstWhere(
+      (Map<String, dynamic> option) => option['type'] == 'array',
+    );
+    final String nextRef = '#/\$defs/diagnosticValue${level + 1}';
+    if (objectOption['maxProperties'] != maximumDiagnosticCollectionItems ||
+        (objectOption['propertyNames'] as Map<String, dynamic>)['maxLength'] !=
+            maximumDiagnosticStringCharacters ||
+        (objectOption['additionalProperties']
+                as Map<String, dynamic>)[r'$ref'] !=
+            nextRef ||
+        arrayOption['maxItems'] != maximumDiagnosticCollectionItems ||
+        (arrayOption['items'] as Map<String, dynamic>)[r'$ref'] != nextRef) {
+      _fail('Diagnostics nested schema bounds drifted at depth $level.');
+    }
+  }
+  if ((diagnosticDefinitions['diagnosticValue$maximumDiagnosticNestingDepth']
+          as Map<String, dynamic>)[r'$ref'] !=
+      r'#/$defs/diagnosticLeaf') {
+    _fail('Diagnostics schema depth no longer matches DiagnosticsBuffer.');
   }
 
   const List<String> requiredCiReleaseChecks = <String>[

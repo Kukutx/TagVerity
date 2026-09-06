@@ -46,6 +46,9 @@ final class DiagnosticsBuffer {
   }
 
   Object? _sanitize(Object? value, int depth) {
+    if (value is double && !value.isFinite) {
+      return '[non-finite-number]';
+    }
     if (value == null || value is num || value is bool) {
       return value;
     }
