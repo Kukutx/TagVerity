@@ -85,6 +85,23 @@ void main() {
     expect(buffer.events.last.code, 'event.119');
   });
 
+  test('ErrorText bounds external text and removes control characters', () {
+    final String cleaned = ErrorText.clean(
+      PlatformException(
+        code: 'native',
+        message: '  first\nsecond\t${'x' * 700}\u0000tail  ',
+      ),
+    );
+
+    expect(cleaned.runes.length, ErrorText.maximumCharacters);
+    expect(cleaned, startsWith('first second '));
+    expect(cleaned, isNot(contains('\n')));
+    expect(cleaned, isNot(contains('\t')));
+    expect(cleaned, isNot(contains('\u0000')));
+    expect(cleaned, endsWith('…'));
+    expect(ErrorText.clean('\n\t'), 'Unexpected error.');
+  });
+
   test('ErrorText exposes clean platform and state messages', () {
     expect(
       ErrorText.clean(

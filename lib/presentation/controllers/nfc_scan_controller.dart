@@ -273,9 +273,7 @@ final class NfcScanController extends ChangeNotifier
     if (!_isActiveScan(requestId)) return;
     _finishScanRequest(requestId);
     if (addToBatch) _batchAutoContinue = false;
-    _errorMessage = message;
-    _addDiagnostic(AppDiagnosticLevel.error, 'nfc.scan.failed', message);
-    _notify();
+    _setError(message, code: 'nfc.scan.failed');
   }
 
   Future<void> startContinuousBatchScan() async {
@@ -897,8 +895,9 @@ final class NfcScanController extends ChangeNotifier
     AppDiagnosticLevel level = AppDiagnosticLevel.error,
     Map<String, Object?> data = const <String, Object?>{},
   }) {
-    _errorMessage = message;
-    _addDiagnostic(level, code, message, data: data);
+    final String safeMessage = ErrorText.clean(message);
+    _errorMessage = safeMessage;
+    _addDiagnostic(level, code, safeMessage, data: data);
     _notify();
   }
 

@@ -327,22 +327,77 @@ void main() {
       await expectLater(repository.loadHistory(), throwsFormatException);
     });
 
+    test('early current v2 history infers comparable identity semantics', () async {
+      final Map<String, Object?> stableJson = _scan(id: 'stable-old-v2')
+          .toJson();
+      stableJson.remove('identityStability');
+      stableJson['uidFingerprint'] =
+          '732f6986a0dc9a440072e6868883900086befc53f156041f3778bb763a3dbd95';
+      final Map<String, Object?> sessionJson = _scan(id: 'session-old-v2')
+          .toJson();
+      sessionJson
+        ..remove('identityStability')
+        ..['uidHex'] = null
+        ..['uidFingerprint'] =
+            'baa768aac3b46551fa758b0590cf0490377ce167b7c1e6389ab1a680c302beb8';
+      final store = InMemorySharedPreferencesAsync.withData(<String, Object>{
+        'tagverity.history.v2': jsonEncode(<Object?>[stableJson, sessionJson]),
+      });
+      SharedPreferencesAsyncPlatform.instance = store;
+      final repository = SharedPreferencesScanHistoryRepository(
+        preferences: SharedPreferencesAsync(),
+      );
+
+      final List<NfcScan> history = await repository.loadHistory();
+      expect(history, hasLength(2));
+      expect(history[0].identityStability, TagIdentityStability.stable);
+      expect(history[0].hasComparableIdentity, isTrue);
+      expect(history[1].identityStability, TagIdentityStability.sessionOnly);
+      expect(history[1].hasComparableIdentity, isFalse);
+    });
+
+    test('exactly 500 legacy-compatible history records still load', () async {
+      final List<Object?> maximum = List<Object?>.generate(
+        500,
+        (int index) => _scan(id: 'max-$index').toJson(),
+      );
+      final store = InMemorySharedPreferencesAsync.withData(<String, Object>{
+        'tagverity.history.v2': jsonEncode(maximum),
+      });
+      SharedPreferencesAsyncPlatform.instance = store;
+      final repository = SharedPreferencesScanHistoryRepository(
+        preferences: SharedPreferencesAsync(),
+      );
+
+      final List<NfcScan> history = await repository.loadHistory();
+      expect(history, hasLength(500));
+    });
+
     test(
-      'early current v2 history without identity stability still loads',
+      'history record count is bounded to the legacy 500-record maximum',
       () async {
-        final Map<String, Object?> json = _scan().toJson();
-        json.remove('identityStability');
+        final List<Object?> oversized = List<Object?>.generate(
+          501,
+          (int index) => _scan(id: 'scan-$index').toJson(),
+        );
         final store = InMemorySharedPreferencesAsync.withData(<String, Object>{
-          'tagverity.history.v2': jsonEncode(<Object?>[json]),
+          'tagverity.history.v2': jsonEncode(oversized),
         });
         SharedPreferencesAsyncPlatform.instance = store;
         final repository = SharedPreferencesScanHistoryRepository(
           preferences: SharedPreferencesAsync(),
         );
 
-        final List<NfcScan> history = await repository.loadHistory();
-        expect(history, hasLength(1));
-        expect(history.single.identityStability, TagIdentityStability.unknown);
+        await expectLater(repository.loadHistory(), throwsFormatException);
+        await expectLater(
+          repository.saveHistory(
+            List<NfcScan>.generate(
+              501,
+              (int index) => _scan(id: 'save-$index'),
+            ),
+          ),
+          throwsFormatException,
+        );
       },
     );
 

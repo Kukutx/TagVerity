@@ -18,6 +18,8 @@ final class SharedPreferencesScanHistoryRepository
   static const String _settingsKey = 'tagverity.settings.v2';
   static const String _legacyHistoryKey = 'nfc_inspector.history.v1';
   static const String _legacySettingsKey = 'nfc_inspector.settings.v1';
+  // Early TagVerity releases allowed up to 500 local history records.
+  static const int _maximumCompatibleHistoryRecords = 500;
   static final RegExp _fingerprintPattern = RegExp(r'^[0-9a-f]{64}$');
   static final RegExp _colonHexPattern = RegExp(
     r'^(?:[0-9A-Fa-f]{2}(?::[0-9A-Fa-f]{2})*)?$',
@@ -115,6 +117,11 @@ final class SharedPreferencesScanHistoryRepository
     if (decoded is! List<dynamic>) {
       throw const FormatException('Saved scan history has an invalid shape.');
     }
+    if (decoded.length > _maximumCompatibleHistoryRecords) {
+      throw const FormatException(
+        'Saved scan history contains too many records.',
+      );
+    }
     final List<NfcScan> scans = <NfcScan>[];
     final Set<String> scanIds = <String>{};
     for (final Object? item in decoded) {
@@ -124,7 +131,12 @@ final class SharedPreferencesScanHistoryRepository
         );
       }
       _validateScanJson(item);
-      final NfcScan scan = NfcScan.fromJson(item);
+      NfcScan scan = NfcScan.fromJson(item);
+      if (!item.containsKey('identityStability')) {
+        scan = scan.copyWith(
+          identityStability: HistoryPrivacy.inferEarlyV2IdentityStability(scan),
+        );
+      }
       if (!scanIds.add(scan.id)) {
         throw const FormatException(
           'Saved scan history contains duplicate scan IDs.',
@@ -231,6 +243,9 @@ final class SharedPreferencesScanHistoryRepository
       value.isEmpty ? 0 : value.split(':').length;
 
   void _validateHistoryForSave(List<NfcScan> scans) {
+    if (scans.length > _maximumCompatibleHistoryRecords) {
+      throw const FormatException('Scan history cannot exceed 500 records.');
+    }
     final Set<String> scanIds = <String>{};
     for (final NfcScan scan in scans) {
       _validateScanJson(scan.toJson());

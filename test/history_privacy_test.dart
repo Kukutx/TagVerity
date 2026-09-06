@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tagverity/domain/models/nfc_scan.dart';
+import 'package:tagverity/domain/models/tag_identity_stability.dart';
 import 'package:tagverity/domain/services/history_privacy.dart';
 
 void main() {
@@ -25,6 +26,37 @@ void main() {
     expect(HistoryPrivacy.warningsNeedScrub(warnings), isTrue);
     expect(HistoryPrivacy.warningsNeedScrub(safe), isFalse);
   });
+
+  test(
+    'pre-identity fingerprints recover stable versus session-only meaning',
+    () {
+      final NfcScan stable = NfcScan(
+        id: 'stable',
+        scannedAt: DateTime.utc(2026, 9, 5),
+        platform: 'android',
+        uidFingerprint:
+            '732f6986a0dc9a440072e6868883900086befc53f156041f3778bb763a3dbd95',
+        technologies: const <String>['NfcA'],
+        details: const <String, String>{},
+        ndefRecords: const [],
+        warnings: const <String>[],
+      );
+      final NfcScan sessionOnly = stable.copyWith(
+        id: 'session',
+        uidFingerprint:
+            'baa768aac3b46551fa758b0590cf0490377ce167b7c1e6389ab1a680c302beb8',
+      );
+
+      expect(
+        HistoryPrivacy.inferEarlyV2IdentityStability(stable),
+        TagIdentityStability.stable,
+      );
+      expect(
+        HistoryPrivacy.inferEarlyV2IdentityStability(sessionOnly),
+        TagIdentityStability.sessionOnly,
+      );
+    },
+  );
 
   test('raw UID fingerprint reconstruction matches scan hashing', () {
     expect(
