@@ -22,6 +22,7 @@
 - Technical metadata retention now uses an explicit reviewed allowlist in both default and opt-in modes; opting in adds only known linkable keys, while unknown/future detail keys remain excluded until explicitly cataloged.
 - Android app-data backup/device-transfer paths are explicitly disabled/excluded, including the DataStore/file and legacy SharedPreferences domains.
 - Added latest-request-wins guards for overlapping NFC availability refreshes so stale results cannot overwrite newer state, return stale gate decisions to callers, or emit stale failure diagnostics.
+- Real nfc_manager availability timeout/platform failures now propagate to the controller instead of being silently converted inside the reader service, so production failures use the same unknown-state fallback and sanitized failure diagnostics already covered by controller tests.
 - Added startup privacy enforcement so previously retained sensitive history is hidden immediately and rewritten to match current settings.
 - Added standard NFC Forum Type 4 / NDEF AID `D2760000850101` for iOS without claiming arbitrary ISO 7816 application discovery.
 - Added recursive diagnostics sanitization, bounded/normalized platform-error text (500 Unicode characters with control/whitespace cleanup), NFC availability timeout/failure handling, and false-success protection for clipboard copies.

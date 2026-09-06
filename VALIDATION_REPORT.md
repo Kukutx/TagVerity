@@ -28,8 +28,8 @@ Verified on the maintainer machine without launching an emulator:
 - `dart run tool/validate_project.dart`: passed.
 - strict maintainer bootstrap with `--strict-sdk --single-sdk`: passed against Flutter 3.47.1 / Dart 3.13.1.
 - `flutter analyze`: **0 issues**.
-- `flutter test --coverage`: **146/146 tests passed**.
-- Line coverage: **79.9% (1624/2033)**, above the enforced **75%** floor. Coverage growth is concentrated in controller/session concurrency, local persistence, privacy, accessibility, diagnostics, report encoding/contracts, and detail UI. Native tag-adapter lines that require real nfc_manager platform tag objects are explicitly excluded from LCOV and remain covered by compile gates plus the physical-device matrix.
+- `flutter test --coverage`: **148/148 tests passed**.
+- Line coverage: **80.2% (1631/2033)**, above the enforced **75%** floor. Coverage growth is concentrated in controller/session concurrency, local persistence, privacy, accessibility, diagnostics, report encoding/contracts, and detail UI. Native tag-adapter lines that require real nfc_manager platform tag objects are explicitly excluded from LCOV and remain covered by compile gates plus the physical-device matrix.
 - Widget coverage includes four-tab navigation, global error visibility, sensitive-setting confirmation, dark mode, **all four core tabs at 320px + 200% text scaling**, populated Inspect/Batch/History results at the same stress size, and a full Tag Details stress pass with technical/NDEF expansion.
 - Android debug APK compilation: passed.
 - Android debug AAB compilation with `android-arm,android-arm64`: passed.
@@ -56,6 +56,7 @@ The current direct dependencies are already at their latest resolvable versions.
 - Global error visibility from every core tab.
 - Serialized settings mutations merge against the latest committed state so rapid toggles cannot overwrite one another.
 - Overlapping NFC availability refreshes use latest-request-wins semantics so an older slow result cannot overwrite newer support state, return a stale gate decision to a caller, or log a stale failure diagnostic.
+- The real nfc_manager reader maps enabled/disabled/unsupported states directly while propagating native availability errors/timeouts to the controller, where they degrade to `unknown` and produce sanitized `nfc.availability.check.failed` diagnostics.
 - Serialized history persistence across scan-save/delete/clear/scrub/privacy rewrites, including recovery after a failed queued write and deterministic behavior under concurrent user actions.
 - Privacy-first sensitive-setting changes: the stricter setting commits first, sensitive history is hidden in memory immediately, disk rewrites are serialized, and startup reapplies/retries the current privacy policy if a previous rewrite was incomplete.
 - Corrupted persisted history/settings are reported instead of silently becoming empty/default data.

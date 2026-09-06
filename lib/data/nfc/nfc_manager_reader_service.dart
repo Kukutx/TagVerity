@@ -30,10 +30,16 @@ final class NfcManagerReaderService implements NfcReaderService {
   NfcManagerReaderService({
     NfcManager? manager,
     this._tagInspector,
+    Duration? availabilityCheckTimeout,
     Duration? scanTimeout,
     Duration? sessionStartTimeout,
     Duration? sessionCloseTimeout,
   }) : _manager = manager ?? NfcManager.instance,
+       _availabilityCheckTimeout =
+           availabilityCheckTimeout ??
+           const Duration(
+             seconds: AppConstants.availabilityCheckTimeoutSeconds,
+           ),
        _scanTimeout =
            scanTimeout ??
            const Duration(seconds: AppConstants.defaultScanTimeoutSeconds),
@@ -46,6 +52,7 @@ final class NfcManagerReaderService implements NfcReaderService {
 
   final NfcManager _manager;
   final NfcTagInspector? _tagInspector;
+  final Duration _availabilityCheckTimeout;
   final Duration _scanTimeout;
   final Duration _sessionStartTimeout;
   final Duration _sessionCloseTimeout;
@@ -62,22 +69,14 @@ final class NfcManagerReaderService implements NfcReaderService {
       _activeSessionGeneration == generation;
   @override
   Future<NfcSupportStatus> checkAvailability() async {
-    try {
-      final NfcAvailability availability = await _manager
-          .checkAvailability()
-          .timeout(
-            const Duration(
-              seconds: AppConstants.availabilityCheckTimeoutSeconds,
-            ),
-          );
-      return switch (availability) {
-        NfcAvailability.enabled => NfcSupportStatus.enabled,
-        NfcAvailability.disabled => NfcSupportStatus.disabled,
-        NfcAvailability.unsupported => NfcSupportStatus.unsupported,
-      };
-    } on Object {
-      return NfcSupportStatus.unknown;
-    }
+    final NfcAvailability availability = await _manager
+        .checkAvailability()
+        .timeout(_availabilityCheckTimeout);
+    return switch (availability) {
+      NfcAvailability.enabled => NfcSupportStatus.enabled,
+      NfcAvailability.disabled => NfcSupportStatus.disabled,
+      NfcAvailability.unsupported => NfcSupportStatus.unsupported,
+    };
   }
 
   @override
