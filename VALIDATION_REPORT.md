@@ -21,7 +21,8 @@ GitHub Actions is the authoritative software merge gate. It requires:
 - the complete Flutter test suite with LCOV coverage collection;
 - a minimum **75% line coverage** floor;
 - Android debug APK compilation;
-- unsigned iOS debug compilation on macOS.
+- unsigned Android release AAB compilation for `android-arm,android-arm64` plus ARM32/ARM64 runtime-entry verification;
+- unsigned iOS **release** compilation on macOS.
 A green CI run does not replace physical NFC hardware testing.
 ## Local no-emulator validation for the deep-audit hardening work
 Verified on the maintainer machine without launching an emulator:
@@ -34,6 +35,7 @@ Verified on the maintainer machine without launching an emulator:
 - Android debug APK compilation: passed.
 - Android debug AAB compilation with `android-arm,android-arm64`: passed.
 - Android **release AAB** compilation with `android-arm,android-arm64`: passed (**32.1 MB**); both `armeabi-v7a` and `arm64-v8a` contain `libapp.so`/`libflutter.so`, and no x86_64 Flutter app runtime is packaged.
+- A detached no-secrets CI simulation with no `android/key.properties` also produced the same **32.1 MB** release AAB and passed the ARM32/ARM64/no-x86 runtime-entry check, confirming the release compile gate does not require repository signing secrets.
 - Release AAB signature verification: `jar verified`. The local upload certificate is self-signed, which is normal for an Android upload key; rebuild final store artifacts from merged `main`.
 - iOS `Info.plist` and entitlements parse successfully; `Info.plist` includes NFC Forum Type 3 / NDEF FeliCa system code `12FC` and standard NFC Forum Type 4 / NDEF ISO 7816 AID `D2760000850101`.
 The current direct dependencies are already at their latest resolvable versions. Flutter 3.47.1 emits a future Built-in Kotlin migration warning for the upstream `nfc_manager` plugin; there is no newer resolvable plugin release in the current dependency graph, and the warning does not fail the current Android build.
@@ -80,7 +82,7 @@ The current direct dependencies are already at their latest resolvable versions.
 - Current-tab-only page construction instead of rebuilding four always-mounted tab pages.
 ## Platform validation
 Android and iOS project files, NFC permissions/entitlements, branding, and native share bridges are committed.
-CI can verify Android compilation and an unsigned iOS build. It cannot verify NFC antenna behavior, OS NFC session UX, device-specific tag support, Apple signing, or store submission.
+CI can verify Android debug/release compilation, release-AAB ABI contents, and an unsigned iOS release build. It cannot verify NFC antenna behavior, OS NFC session UX, device-specific tag support, Apple signing, or store submission.
 The physical-device acceptance matrix remains the `v1.0 Core` release gate in GitHub issue #2 and `docs/DEVICE_TEST_CHECKLIST.md`.
 ## Previous signed Android build baseline
 The signed files previously produced locally on **2026-09-03** were:

@@ -13,6 +13,7 @@ permissions:
 jobs:
   analyze-test-build:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
       - uses: subosito/flutter-action@v2
@@ -38,9 +39,42 @@ jobs:
         run: dart run tool/check_coverage.dart coverage/lcov.info 75
       - name: Compile Android debug APK
         run: flutter build apk --debug
+      - name: Compile Android release AAB without signing
+        run: flutter build appbundle --release --target-platform android-arm,android-arm64
+      - name: Verify Android release ABI contents
+        run: |
+          python - <<'PY'
+          import zipfile
+
+          bundle = 'build/app/outputs/bundle/release/app-release.aab'
+          with zipfile.ZipFile(bundle) as archive:
+              names = set(archive.namelist())
+
+          required = {
+              'base/lib/armeabi-v7a/libapp.so',
+              'base/lib/armeabi-v7a/libflutter.so',
+              'base/lib/arm64-v8a/libapp.so',
+              'base/lib/arm64-v8a/libflutter.so',
+          }
+          missing = sorted(required - names)
+          if missing:
+              raise SystemExit(f'Missing required Android runtime entries: {missing}')
+
+          unexpected_x86 = sorted(
+              name
+              for name in names
+              if name.startswith('base/lib/x86')
+              and (name.endswith('/libapp.so') or name.endswith('/libflutter.so'))
+          )
+          if unexpected_x86:
+              raise SystemExit(f'Unexpected x86 Flutter runtime entries: {unexpected_x86}')
+
+          print('Android release AAB contains ARM32 + ARM64 Flutter runtimes only.')
+          PY
   ios-build:
     needs: analyze-test-build
     runs-on: macos-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
       - uses: subosito/flutter-action@v2
@@ -50,5 +84,5 @@ jobs:
           cache: true
       - name: Dependencies
         run: flutter pub get
-      - name: Compile iOS debug app without signing
-        run: flutter build ios --debug --no-codesign
+      - name: Compile iOS release app without signing
+        run: flutter build ios --release --no-codesign
