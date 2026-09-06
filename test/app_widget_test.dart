@@ -86,6 +86,45 @@ void main() {
     expect(controller.settings.saveRawUidInHistory, isTrue);
     expect(repository.settings.saveRawUidInHistory, isTrue);
   });
+  testWidgets('recovery toggles do not claim hidden history was scrubbed', (
+    WidgetTester tester,
+  ) async {
+    final _WidgetRepository repository = _WidgetRepository(
+      failLoadSettings: true,
+      initialHistory: <NfcScan>[_stressScan()],
+    );
+    final NfcScanController controller = await _controller(
+      repository: repository,
+    );
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(TagVerityApp(controller: controller));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.settings_rounded));
+    await tester.pumpAndSettle();
+
+    final Finder rawUidToggle = find.text('Save raw UID in history');
+    await tester.scrollUntilVisible(rawUidToggle, 200);
+    await tester.pumpAndSettle();
+    await tester.tap(rawUidToggle);
+    await tester.pumpAndSettle();
+    expect(find.text('Save raw UID?'), findsOneWidget);
+    await tester.tap(find.text('Enable'));
+    await tester.pumpAndSettle();
+    expect(controller.settings.saveRawUidInHistory, isTrue);
+    expect(controller.privacySettingsRecoveryRequired, isTrue);
+
+    await tester.tap(rawUidToggle);
+    await tester.pumpAndSettle();
+
+    expect(controller.settings.saveRawUidInHistory, isFalse);
+    expect(controller.privacySettingsRecoveryRequired, isTrue);
+    expect(
+      find.text('Setting disabled; matching saved data was removed'),
+      findsNothing,
+    );
+  });
+
   testWidgets(
     'settings recovery flow stays usable on a narrow large-text screen',
     (WidgetTester tester) async {

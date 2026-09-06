@@ -222,7 +222,10 @@ class SettingsPage extends StatelessWidget {
       }
     }
     final bool saved = await controller.updateSettings(update);
-    if (saved && !value && context.mounted) {
+    if (saved &&
+        !value &&
+        !controller.privacySettingsRecoveryRequired &&
+        context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Setting disabled; matching saved data was removed'),
