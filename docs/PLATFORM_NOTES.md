@@ -2,6 +2,7 @@
 ## Android
 - Polling covers NFC-A / NFC-B (`ISO 14443`), NFC-V (`ISO 15693`), and NFC-F (`ISO 18092`).
 - Continuous Batch starts a new reader session only after the previous native session has closed; there is no timing-based rearm delay.
+- The fixed scan timeout remains active after a tag is discovered until inspection finishes. If a platform metadata/NDEF operation stalls, the session is invalidated and later completion is ignored. Native session-close waits are bounded to 5 seconds for UI recovery; if closure is still unconfirmed, TagVerity suppresses scan success/rearm and refuses a replacement native session until the outstanding close settles.
 - Android generally exposes more low-level NFC metadata than iOS.
 - Optional controller metadata such as timeout/max-transceive values is best-effort and does not make an otherwise healthy tag fail assessment.
 - UID and technology availability depend on the phone NFC controller and Android stack.

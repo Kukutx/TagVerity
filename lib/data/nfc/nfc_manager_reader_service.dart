@@ -21,18 +21,42 @@ import '../../domain/models/scan_settings.dart';
 import '../../domain/models/tag_identity_stability.dart';
 import 'nfc_reader_service.dart';
 
+typedef NfcTagInspector = Future<NfcScan> Function(
+  NfcTag tag,
+  ScanSettings settings,
+);
+
 final class NfcManagerReaderService implements NfcReaderService {
+  NfcManagerReaderService({
+    NfcManager? manager,
+    this._tagInspector,
+    Duration? scanTimeout,
+    Duration? sessionCloseTimeout,
+  }) : _manager = manager ?? NfcManager.instance,
+       _scanTimeout =
+           scanTimeout ??
+           const Duration(seconds: AppConstants.defaultScanTimeoutSeconds),
+       _sessionCloseTimeout =
+           sessionCloseTimeout ??
+           const Duration(seconds: AppConstants.sessionCloseTimeoutSeconds);
+
+  final NfcManager _manager;
+  final NfcTagInspector? _tagInspector;
+  final Duration _scanTimeout;
+  final Duration _sessionCloseTimeout;
   int _sessionGeneration = 0;
   int _scanSequence = 0;
   int? _activeSessionGeneration;
+  bool _discoveryClaimed = false;
   bool _terminalCallbackDelivered = false;
   Timer? _timeoutTimer;
+  Future<void>? _pendingNativeClose;
   bool _isActiveSession(int generation) =>
       _activeSessionGeneration == generation;
   @override
   Future<NfcSupportStatus> checkAvailability() async {
     try {
-      final NfcAvailability availability = await NfcManager.instance
+      final NfcAvailability availability = await _manager
           .checkAvailability()
           .timeout(
             const Duration(
@@ -55,17 +79,20 @@ final class NfcManagerReaderService implements NfcReaderService {
     required ScanResultCallback onScan,
     required ScanErrorCallback onError,
   }) async {
+    _ensureNoPendingNativeClose();
     if (_activeSessionGeneration != null) {
       await stopScan();
+      _ensureNoPendingNativeClose();
     }
     _sessionGeneration += 1;
     final int generation = _sessionGeneration;
     _activeSessionGeneration = generation;
+    _discoveryClaimed = false;
     _terminalCallbackDelivered = false;
     _timeoutTimer?.cancel();
     _timeoutTimer = null;
     try {
-      await NfcManager.instance.startSession(
+      await _manager.startSession(
         pollingOptions: const <NfcPollingOption>{
           NfcPollingOption.iso14443,
           NfcPollingOption.iso15693,
@@ -83,43 +110,57 @@ final class NfcManagerReaderService implements NfcReaderService {
           onError(_friendlyIosError(error));
         },
         onDiscovered: (NfcTag tag) async {
-          if (!_isActiveSession(generation) || _terminalCallbackDelivered) {
+          if (!_isActiveSession(generation) ||
+              _terminalCallbackDelivered ||
+              _discoveryClaimed) {
             return;
           }
-          _terminalCallbackDelivered = true;
-          _timeoutTimer?.cancel();
-          _timeoutTimer = null;
+          _discoveryClaimed = true;
           try {
-            final NfcScan scan = await _inspectTag(tag, settings);
-            if (!_isActiveSession(generation)) {
+            final NfcScan scan = await _inspectTagForSession(tag, settings);
+            if (!_isActiveSession(generation) || _terminalCallbackDelivered) {
               return;
             }
+            _terminalCallbackDelivered = true;
+            _timeoutTimer?.cancel();
+            _timeoutTimer = null;
             final bool closed = await _closeSession(
               generation,
               alertMessageIos: 'Tag read successfully',
             );
             if (!closed) {
+              onError(
+                'Tag was read, but the NFC reader session is still closing. '
+                'Try again shortly.',
+              );
               return;
             }
             await onScan(scan);
           } on Object catch (error) {
-            if (!_isActiveSession(generation)) {
+            if (!_isActiveSession(generation) || _terminalCallbackDelivered) {
               return;
             }
+            _terminalCallbackDelivered = true;
+            _timeoutTimer?.cancel();
+            _timeoutTimer = null;
             final bool closed = await _closeSession(
               generation,
               errorMessageIos: 'Tag read failed',
             );
-            if (!closed) {
-              return;
-            }
-            onError('Could not inspect this tag: ${ErrorText.clean(error)}');
+            final String message =
+                'Could not inspect this tag: ${ErrorText.clean(error)}';
+            onError(
+              closed
+                  ? message
+                  : '$message The NFC reader session is still closing; '
+                        'try again shortly.',
+            );
           }
         },
       );
       if (_isActiveSession(generation) && !_terminalCallbackDelivered) {
         _timeoutTimer = Timer(
-          const Duration(seconds: AppConstants.defaultScanTimeoutSeconds),
+          _scanTimeout,
           () => unawaited(_handleTimeout(generation, onError)),
         );
       }
@@ -143,12 +184,14 @@ final class NfcManagerReaderService implements NfcReaderService {
       generation,
       errorMessageIos: 'Scan timed out',
     );
-    if (!closed) {
-      return;
-    }
+    final String message =
+        'Scan timed out after ${AppConstants.defaultScanTimeoutSeconds} seconds. '
+        'Move the tag and try again.';
     onError(
-      'Scan timed out after ${AppConstants.defaultScanTimeoutSeconds} seconds. '
-      'Move the tag and try again.',
+      closed
+          ? message
+          : '$message The NFC reader session is still closing; '
+                'try again shortly.',
     );
   }
 
@@ -161,7 +204,12 @@ final class NfcManagerReaderService implements NfcReaderService {
     if (generation == null) {
       return;
     }
-    await _closeSession(generation);
+    final bool closed = await _closeSession(generation);
+    if (!closed) {
+      throw StateError(
+        'The NFC reader session is still closing. Try again shortly.',
+      );
+    }
   }
 
   Future<bool> _closeSession(
@@ -175,15 +223,50 @@ final class NfcManagerReaderService implements NfcReaderService {
     // Invalidate before awaiting the native close. A stale discovery callback
     // can therefore never stop or report a newer reader session.
     _invalidateSessionState(generation);
+    late final Future<void> closeFuture;
     try {
-      await NfcManager.instance.stopSession(
+      closeFuture = _manager.stopSession(
         alertMessageIos: alertMessageIos,
         errorMessageIos: errorMessageIos,
       );
     } on Object {
       // The OS may already have invalidated the NFC session.
+      return true;
     }
-    return true;
+    _pendingNativeClose = closeFuture;
+    unawaited(
+      closeFuture.then<void>(
+        (_) => _clearPendingNativeClose(closeFuture),
+        onError: (Object _, StackTrace _) {
+          _clearPendingNativeClose(closeFuture);
+        },
+      ),
+    );
+    try {
+      await closeFuture.timeout(_sessionCloseTimeout);
+      _clearPendingNativeClose(closeFuture);
+      return true;
+    } on TimeoutException {
+      return false;
+    } on Object {
+      // The OS may already have invalidated the NFC session.
+      _clearPendingNativeClose(closeFuture);
+      return true;
+    }
+  }
+
+  void _ensureNoPendingNativeClose() {
+    if (_pendingNativeClose != null) {
+      throw StateError(
+        'The previous NFC reader session is still closing. Try again shortly.',
+      );
+    }
+  }
+
+  void _clearPendingNativeClose(Future<void> closeFuture) {
+    if (identical(_pendingNativeClose, closeFuture)) {
+      _pendingNativeClose = null;
+    }
   }
 
   void _invalidateSessionState(int generation) {
@@ -191,10 +274,22 @@ final class NfcManagerReaderService implements NfcReaderService {
       return;
     }
     _activeSessionGeneration = null;
+    _discoveryClaimed = false;
     _timeoutTimer?.cancel();
     _timeoutTimer = null;
   }
 
+  Future<NfcScan> _inspectTagForSession(NfcTag tag, ScanSettings settings) {
+    final NfcTagInspector? override = _tagInspector;
+    return override == null
+        ? _inspectTag(tag, settings)
+        : override(tag, settings);
+  }
+
+  // coverage:ignore-start
+  // Platform tag adapters require native nfc_manager tag objects. Their pure
+  // decoding helpers are covered separately; this block is exercised by the
+  // Android/iOS compile gates and the physical-device acceptance matrix.
   Future<NfcScan> _inspectTag(NfcTag tag, ScanSettings settings) async {
     final DateTime scannedAt = DateTime.now();
     final Map<String, String> details = <String, String>{};
@@ -473,6 +568,7 @@ final class NfcManagerReaderService implements NfcReaderService {
     }
   }
 
+  // coverage:ignore-end
   String _friendlyIosError(NfcReaderSessionErrorIos error) {
     final String message = error.message.trim();
     return message.isEmpty
