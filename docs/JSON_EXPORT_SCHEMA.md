@@ -28,6 +28,8 @@ Each scan contains:
 
 The formal JSON Schema is `docs/nfc-scan-export.schema.json`.
 
+TagVerity-generated v3 exports use colon-delimited hexadecimal bytes for non-null `uidHex`, `identifierHex`, and `payloadPreviewHex`. NDEF payload previews contain at most the first 64 payload bytes. Persisted history additionally verifies that preview length matches `min(payloadLength, 64)`, record indexes match array order, and `byteLength` is not smaller than `payloadLength`. These constraints describe values TagVerity has generated throughout schema v3 rather than introducing a new export shape.
+
 ## Privacy note
 
 Current-scan export can contain the raw UID and NDEF content visible on screen. History export contains only what history retained under the user's privacy settings. When raw UID retention is enabled, the history export also keeps the comparable SHA-256 fingerprint derived from that UID so the exported identity fields do not contradict each other.

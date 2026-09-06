@@ -67,7 +67,8 @@
           "type": [
             "string",
             "null"
-          ]
+          ],
+          "pattern": "^(?:[0-9A-Fa-f]{2})(?::[0-9A-Fa-f]{2})*$"
         },
         "uidFingerprint": {
           "type": "string",
@@ -134,7 +135,8 @@
           "type": "string"
         },
         "identifierHex": {
-          "type": "string"
+          "type": "string",
+          "pattern": "^(?:[0-9A-Fa-f]{2}(?::[0-9A-Fa-f]{2})*)?$"
         },
         "payloadLength": {
           "type": "integer",
@@ -142,13 +144,16 @@
         },
         "byteLength": {
           "type": "integer",
-          "minimum": 0
+          "minimum": 0,
+          "description": "Total encoded NDEF record length; TagVerity-generated exports keep this greater than or equal to payloadLength."
         },
         "summary": {
           "type": "string"
         },
         "payloadPreviewHex": {
-          "type": "string"
+          "type": "string",
+          "pattern": "^(?:[0-9A-Fa-f]{2}(?::[0-9A-Fa-f]{2})*)?$",
+          "maxLength": 191
         }
       }
     }
