@@ -219,7 +219,7 @@ abstract final class NdefDecoder {
     if (runes.length <= maximumSummaryCharacters) {
       return value;
     }
-    return '${String.fromCharCodes(runes.take(maximumSummaryCharacters))}…';
+    return '${String.fromCharCodes(runes.take(maximumSummaryCharacters - 1))}…';
   }
 
   static const Map<int, String> _uriPrefixes = <int, String>{
