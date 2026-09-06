@@ -28,7 +28,7 @@ Each scan contains:
 
 The formal JSON Schema is `docs/nfc-scan-export.schema.json`.
 
-TagVerity-generated v3 exports use colon-delimited hexadecimal bytes for non-null `uidHex`, `identifierHex`, and `payloadPreviewHex`. NDEF payload previews contain at most the first 64 payload bytes. Persistence and export encoders share the same model-level scan contract: preview length must match `min(payloadLength, 64)`, record indexes must match array order, `byteLength` cannot be smaller than `payloadLength`, technologies cannot repeat, and any retained raw UID must match its SHA-256 fingerprint plus comparable identity semantics. Invalid models are rejected before JSON or Batch CSV is produced. These constraints describe values TagVerity has generated throughout schema v3 rather than introducing a new export shape.
+TagVerity-generated v3 exports use colon-delimited hexadecimal bytes for non-null `uidHex`, `identifierHex`, and `payloadPreviewHex`. NDEF payload previews contain at most the first 64 payload bytes. Persistence and export encoders share the same model-level scan contract: preview length must match `min(payloadLength, 64)`, record indexes must match array order, `byteLength` cannot be smaller than `payloadLength`, technologies cannot repeat, and any retained raw UID must match its SHA-256 fingerprint plus comparable identity semantics. Invalid models are rejected before JSON or Batch CSV is produced. These constraints describe values TagVerity has generated throughout schema v3 rather than introducing a new export shape. `NfcScan` stores its nested collections as immutable snapshots, and JSON encoding returns independent collection copies rather than aliases to the validated model.
 
 ## Privacy note
 
