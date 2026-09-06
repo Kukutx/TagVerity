@@ -24,6 +24,7 @@
 - [ ] Disabling sensitive retention immediately stops future retention and removes matching already-saved data.
 - [ ] If historical cleanup fails after disabling retention, the setting stays off, sensitive data remains hidden in the running UI/export path, and the global error banner reports incomplete on-disk cleanup.
 - [ ] Scan-save, delete, clear, and privacy-history mutations remain serialized under rapid user actions.
+- [ ] If saved privacy settings are unreadable, history remains hidden/untouched and scanning is blocked until an explicit recovery applies the complete current privacy policy; interim toggle changes do not load or rewrite history.
 ## Android
 - [ ] NFC permission and NFC hardware feature are declared.
 - [ ] Application label is `TagVerity`.

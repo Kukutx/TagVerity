@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tagverity/data/nfc/nfc_reader_service.dart';
@@ -431,6 +433,204 @@ void main() {
       controller.dispose();
     },
   );
+  test(
+    'settings load failure hides history without rewriting or overwriting it',
+    () async {
+      final NfcScan original = _scan();
+      final _MemoryRepository repository = _MemoryRepository(
+        initialHistory: <NfcScan>[original],
+        failLoadSettings: true,
+      );
+      final _Reader reader = _Reader(scan: _scan());
+      final NfcScanController controller = NfcScanController(
+        readerService: reader,
+        repository: repository,
+        exportService: _NoopExportService(),
+      );
+
+      await controller.initialize();
+
+      expect(controller.initialized, isTrue);
+      expect(controller.privacySettingsRecoveryRequired, isTrue);
+      expect(controller.history, isEmpty);
+      expect(repository.history.single.uidHex, original.uidHex);
+      expect(repository.loadHistoryCalls, 0);
+      expect(repository.saveHistoryCalls, 0);
+      expect(
+        controller.errorMessage,
+        contains('Could not load saved settings'),
+      );
+
+      await controller.startScan();
+      expect(reader.startCalls, 0);
+      expect(repository.history.single.uidHex, original.uidHex);
+      expect(repository.saveHistoryCalls, 0);
+      expect(controller.errorMessage, contains('privacy settings'));
+      controller.startBatchSession();
+      expect(controller.batchSessionActive, isFalse);
+      expect(await controller.clearHistory(), isFalse);
+      expect(repository.history.single.uidHex, original.uidHex);
+      expect(repository.saveHistoryCalls, 0);
+      controller.dispose();
+    },
+  );
+
+  test(
+    'settings changes stay history-neutral until explicit recovery',
+    () async {
+      final NfcScan original = _scan();
+      final _MemoryRepository repository = _MemoryRepository(
+        initialHistory: <NfcScan>[original],
+        failLoadSettings: true,
+      );
+      final NfcScanController controller = NfcScanController(
+        readerService: _Reader(),
+        repository: repository,
+        exportService: _NoopExportService(),
+      );
+
+      await controller.initialize();
+      expect(controller.privacySettingsRecoveryRequired, isTrue);
+      expect(controller.history, isEmpty);
+      expect(repository.loadHistoryCalls, 0);
+      expect(repository.saveHistoryCalls, 0);
+
+      expect(
+        await controller.updateSettings(
+          (ScanSettings current) => current.copyWith(saveRawUidInHistory: true),
+        ),
+        isTrue,
+      );
+      expect(
+        await controller.updateSettings(
+          (ScanSettings current) =>
+              current.copyWith(saveRawUidInHistory: false),
+        ),
+        isTrue,
+      );
+      expect(
+        await controller.updateSettings(
+          (ScanSettings current) => current.copyWith(
+            saveRawUidInHistory: true,
+            saveTechnicalIdentifiersInHistory: true,
+          ),
+        ),
+        isTrue,
+      );
+
+      expect(controller.privacySettingsRecoveryRequired, isTrue);
+      expect(controller.history, isEmpty);
+      expect(repository.loadHistoryCalls, 0);
+      expect(repository.saveHistoryCalls, 0);
+      expect(repository.history.single.uidHex, original.uidHex);
+      expect(
+        repository.history.single.details['barcode.value'],
+        original.details['barcode.value'],
+      );
+
+      final bool recovered = await controller
+          .applyCurrentPrivacySettingsToSavedHistory();
+
+      expect(recovered, isTrue);
+      expect(controller.privacySettingsRecoveryRequired, isFalse);
+      expect(controller.history, hasLength(1));
+      expect(controller.history.single.uidHex, original.uidHex);
+      expect(
+        controller.history.single.details['barcode.value'],
+        original.details['barcode.value'],
+      );
+      expect(repository.loadHistoryCalls, 1);
+      expect(repository.saveHistoryCalls, 0);
+      expect(controller.errorMessage, isNull);
+      controller.dispose();
+    },
+  );
+
+  test(
+    'explicit recovery applies the complete current privacy policy once',
+    () async {
+      final NfcScan original = _scan();
+      final _MemoryRepository repository = _MemoryRepository(
+        initialHistory: <NfcScan>[original],
+        failLoadSettings: true,
+      );
+      final NfcScanController controller = NfcScanController(
+        readerService: _Reader(),
+        repository: repository,
+        exportService: _NoopExportService(),
+      );
+
+      await controller.initialize();
+      expect(controller.history, isEmpty);
+      expect(repository.loadHistoryCalls, 0);
+
+      final bool recovered = await controller
+          .applyCurrentPrivacySettingsToSavedHistory();
+
+      expect(recovered, isTrue);
+      expect(controller.privacySettingsRecoveryRequired, isFalse);
+      expect(controller.history, hasLength(1));
+      expect(controller.history.single.uidHex, isNull);
+      expect(controller.history.single.ndefRecords, isEmpty);
+      expect(controller.history.single.details['barcode.value'], isNull);
+      expect(repository.history.single.uidHex, isNull);
+      expect(repository.loadHistoryCalls, 1);
+      expect(repository.saveHistoryCalls, 1);
+      expect(controller.errorMessage, isNull);
+      controller.dispose();
+    },
+  );
+
+  test('history recovery serializes behind pending settings and uses latest policy', () async {
+    final NfcScan original = _scan();
+    final _MemoryRepository repository = _MemoryRepository(
+      initialHistory: <NfcScan>[original],
+      failLoadSettings: true,
+      blockFirstSaveSettings: true,
+    );
+    final NfcScanController controller = NfcScanController(
+      readerService: _Reader(),
+      repository: repository,
+      exportService: _NoopExportService(),
+    );
+
+    await controller.initialize();
+
+    final Future<bool> settingsFuture = controller.updateSettings(
+      (ScanSettings current) => current.copyWith(
+        saveRawUidInHistory: true,
+        saveTechnicalIdentifiersInHistory: true,
+      ),
+    );
+    await repository.saveSettingsStarted.future;
+    expect(controller.settingsBusy, isTrue);
+    expect(repository.saveSettingsCalls, 1);
+
+    final Future<bool> recoveryFuture = controller
+        .applyCurrentPrivacySettingsToSavedHistory();
+    await Future<void>.delayed(Duration.zero);
+    expect(repository.loadHistoryCalls, 0);
+    expect(repository.saveSettingsCalls, 1);
+
+    repository.releaseFirstSaveSettings.complete();
+
+    expect(await settingsFuture, isTrue);
+    expect(await recoveryFuture, isTrue);
+    expect(controller.settings.saveRawUidInHistory, isTrue);
+    expect(controller.settings.saveTechnicalIdentifiersInHistory, isTrue);
+    expect(controller.privacySettingsRecoveryRequired, isFalse);
+    expect(controller.history, hasLength(1));
+    expect(controller.history.single.uidHex, original.uidHex);
+    expect(
+      controller.history.single.details['barcode.value'],
+      original.details['barcode.value'],
+    );
+    expect(repository.saveSettingsCalls, 2);
+    expect(repository.loadHistoryCalls, 1);
+    expect(repository.saveHistoryCalls, 0);
+    controller.dispose();
+  });
+
   test('clipboard failures do not report false success', () async {
     final TestDefaultBinaryMessenger messenger =
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
@@ -562,6 +762,8 @@ final class _MemoryRepository implements ScanHistoryRepository {
     this.failClearHistory = false,
     this.failSaveSettings = false,
     this.failLoadHistory = false,
+    this.failLoadSettings = false,
+    this.blockFirstSaveSettings = false,
     List<NfcScan> initialHistory = const <NfcScan>[],
     ScanSettings initialSettings = const ScanSettings(),
   }) : history = List<NfcScan>.of(initialHistory),
@@ -570,6 +772,13 @@ final class _MemoryRepository implements ScanHistoryRepository {
   final bool failClearHistory;
   final bool failSaveSettings;
   final bool failLoadHistory;
+  final bool failLoadSettings;
+  final bool blockFirstSaveSettings;
+  final Completer<void> saveSettingsStarted = Completer<void>();
+  final Completer<void> releaseFirstSaveSettings = Completer<void>();
+  int saveSettingsCalls = 0;
+  int loadHistoryCalls = 0;
+  int saveHistoryCalls = 0;
   List<NfcScan> history;
   ScanSettings settings;
   @override
@@ -580,20 +789,35 @@ final class _MemoryRepository implements ScanHistoryRepository {
 
   @override
   Future<List<NfcScan>> loadHistory() async {
+    loadHistoryCalls++;
     if (failLoadHistory) throw const FormatException('corrupt history');
     return List<NfcScan>.of(history);
   }
 
   @override
-  Future<ScanSettings> loadSettings() async => settings;
+  Future<ScanSettings> loadSettings() async {
+    if (failLoadSettings) {
+      throw const FormatException('corrupt settings');
+    }
+    return settings;
+  }
+
   @override
   Future<void> saveHistory(List<NfcScan> scans) async {
     if (failSaveHistory) throw StateError('disk unavailable');
+    saveHistoryCalls++;
     history = List<NfcScan>.of(scans);
   }
 
   @override
   Future<void> saveSettings(ScanSettings value) async {
+    saveSettingsCalls++;
+    if (blockFirstSaveSettings && saveSettingsCalls == 1) {
+      if (!saveSettingsStarted.isCompleted) {
+        saveSettingsStarted.complete();
+      }
+      await releaseFirstSaveSettings.future;
+    }
     if (failSaveSettings) throw StateError('disk unavailable');
     settings = value;
   }

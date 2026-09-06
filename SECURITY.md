@@ -25,7 +25,7 @@ TagVerity does not implement:
 ## Privacy
 
 - Current scans may display a raw UID when the OS exposes it.
-- History stores a SHA-256 fingerprint by default, not the raw UID.
+- Default history stores a session-only per-scan SHA-256 value, not the raw UID or the comparable UID-derived fingerprint.
 - Raw UID history is opt-in.
 - NDEF history is opt-in.
 - Selected linkable technical identifiers are removed from history by default.
