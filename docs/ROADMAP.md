@@ -19,6 +19,7 @@ TagVerity is developed **core-first**. Reliability, clear NFC semantics, privacy
 - [x] Validate Text RTD status/reserved bits and UTF-16 surrogate pairing while distinguishing malformed text from valid empty/whitespace-only content.
 - [x] Handle empty NDEF containers.
 - [x] Handle malformed text, binary media payloads, unknown URI prefixes, and unsafe embedded C0/DEL/C1 display controls safely while preserving Tab/LF/CR formatting.
+- [x] Keep NDEF display summaries within the declared 300-character total bound, including the truncation ellipsis.
 - [x] Bound record summaries so unusual tags cannot flood the UI or exports.
 ### Batch
 - [x] Manual one-tag-at-a-time batch scanning.

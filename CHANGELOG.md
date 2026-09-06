@@ -60,7 +60,7 @@
 ### Previously completed core work
 - Added comparable-ID vs session-only NFC identity semantics so repeated-ID checks never claim physical-tag uniqueness when the platform lacks a comparable identifier.
 - Added conservative NFC tag classification without guessing proprietary applications.
-- Hardened NDEF decoding for UTF-16, malformed text, binary payloads, unknown URI prefixes, empty tags, and bounded summaries.
+- Hardened NDEF decoding for UTF-16, malformed text, binary payloads, unknown URI prefixes, empty tags, and summaries capped to 300 Unicode characters total including the truncation ellipsis.
 - Tightened NFC Forum Text RTD decoding: the reserved status bit is rejected, malformed UTF-16 surrogate sequences are rejected, valid surrogate pairs remain supported, and valid whitespace-only UTF-8/UTF-16 text is classified as empty instead of malformed.
 - NDEF text summaries now reject embedded C0 controls (except Tab/LF/CR), DEL, and C1 controls in decoded UTF-8/UTF-16 text, preventing invisible terminal/control bytes from reaching the UI while preserving normal multiline formatting.
 - Added continuous Batch scanning with lifecycle/error stop conditions, capacity protection, and identity-aware CSV output.
