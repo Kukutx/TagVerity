@@ -49,6 +49,7 @@
 - Moved “show technical fields” from a global setting to a local toggle on Tag Details.
 - Removed user-facing scan-timeout, history-limit, and NFC-sound settings in favor of stable product defaults.
 - Added `ReportEncoder`, `DiagnosticsBuffer`, and `BatchSummary` helpers to reduce controller responsibility and repeated work.
+- Batch CSV repeat detection is now derived only from the scans being exported; the encoder no longer accepts an external `BatchSummary`, eliminating stale-summary injection that could mislabel `repeated_id`.
 - Added version/schema metadata validation so `pubspec.yaml`, `AppConstants`, and export schema versions cannot silently drift.
 - Open-source bootstrap now accepts compatible SDKs by default while retaining maintainer-only `--strict-sdk --single-sdk` enforcement.
 - Google Play store script now targets ARM32 + ARM64; the development APK remains ARM64-focused.

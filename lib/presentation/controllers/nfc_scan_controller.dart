@@ -1005,7 +1005,7 @@ final class NfcScanController extends ChangeNotifier
   Future<bool> copyBatchCsv() async {
     final String? content = _prepareExport(
       'batch CSV',
-      () => ReportEncoder.batchCsv(_batchScans, summary: _batchSummary),
+      () => ReportEncoder.batchCsv(_batchScans),
     );
     if (content == null) return false;
     return _copyText(content, label: 'batch CSV');
@@ -1014,7 +1014,7 @@ final class NfcScanController extends ChangeNotifier
   Future<void> shareBatchCsv() async {
     final String? content = _prepareExport(
       'batch CSV',
-      () => ReportEncoder.batchCsv(_batchScans, summary: _batchSummary),
+      () => ReportEncoder.batchCsv(_batchScans),
     );
     if (content == null) return;
     await _shareTextFile(
