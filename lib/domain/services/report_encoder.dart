@@ -3,6 +3,9 @@ import 'dart:convert';
 import '../../core/constants/app_constants.dart';
 import '../../core/utils/byte_utils.dart';
 import '../models/nfc_scan.dart';
+import '../models/nfc_support_status.dart';
+import '../models/scan_settings.dart';
+import 'diagnostics_buffer.dart';
 import 'scan_contract.dart';
 import 'tag_assessor.dart';
 
@@ -23,6 +26,35 @@ abstract final class ReportEncoder {
 
   static String prettyJson(Object? value) =>
       const JsonEncoder.withIndent('  ').convert(value);
+
+  static Map<String, Object?> diagnosticsEnvelope({
+    required NfcSupportStatus supportStatus,
+    required bool isScanning,
+    required int historyCount,
+    required int batchCount,
+    required ScanSettings settings,
+    required bool privacySettingsRecoveryRequired,
+    required DiagnosticsBuffer diagnostics,
+  }) {
+    if (historyCount < 0 || batchCount < 0) {
+      throw const FormatException('Diagnostics counts cannot be negative.');
+    }
+    return <String, Object?>{
+      'schemaVersion': AppConstants.diagnosticsSchemaVersion,
+      'app': AppConstants.appName,
+      'appVersion': AppConstants.appVersion,
+      'exportedAt': DateTime.now().toUtc().toIso8601String(),
+      'supportStatus': supportStatus.name,
+      'isScanning': isScanning,
+      'historyCount': historyCount,
+      'batchCount': batchCount,
+      'privacySettingsRecoveryRequired': privacySettingsRecoveryRequired,
+      'settings': settings.toJson(),
+      'events': diagnostics.events
+          .map((event) => event.toJson())
+          .toList(growable: false),
+    };
+  }
 
   static String batchCsv(List<NfcScan> scans) {
     ScanContract.validateAll(scans);

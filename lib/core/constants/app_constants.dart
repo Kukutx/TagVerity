@@ -10,7 +10,7 @@ abstract final class AppConstants {
   static const int sessionStartTimeoutSeconds = 5;
   static const int sessionCloseTimeoutSeconds = 5;
   static const int exportSchemaVersion = 3;
-  static const int diagnosticsSchemaVersion = 3;
+  static const int diagnosticsSchemaVersion = 4;
   static const int maximumDiagnosticEvents = 100;
   static const int maximumBatchScans = 1000;
 }
