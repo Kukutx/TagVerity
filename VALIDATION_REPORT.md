@@ -50,7 +50,7 @@ The current direct dependencies are already at their latest resolvable versions.
 - Repeated-ID checks only when the platform exposes an identifier that can be compared.
 - Optional low-level metadata failures do not incorrectly mark an otherwise readable tag as REVIEW.
 - NDEF support, read status, capacity, writable/read-only state, empty-container handling, and safe binary media summaries.
-- NDEF Text and URI decoding, strict UTF-8/UTF-16 handling, Text-RTD reserved-bit validation, UTF-16 surrogate-pair validation, valid whitespace-only text handling, rejection of unsafe C0/DEL/C1 display controls while preserving Tab/LF/CR, malformed payload handling, unknown URI prefixes, and bounded summaries.
+- NDEF Text and URI decoding, strict UTF-8/UTF-16 handling, Text-RTD reserved-bit validation, UTF-16 surrogate-pair validation, valid whitespace-only text handling, rejection of unsafe C0/DEL/C1 display controls while preserving Tab/LF/CR, malformed payload handling, unknown URI prefixes, and summaries bounded to 300 Unicode characters total including any ellipsis.
 - PASS / LIMITED / REVIEW semantics where non-NDEF tags can still pass and user-disabled NDEF reading is LIMITED rather than mislabeled as unsupported.
 - Manual Batch and continuous Batch scanning without a fixed rearm delay.
 - Cached single-pass Batch summary metrics.

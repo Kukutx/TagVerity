@@ -281,7 +281,7 @@ void main() {
 
       final String summary = NdefDecoder.decodeRecord(0, record).summary;
 
-      expect(summary.runes.length, NdefDecoder.maximumSummaryCharacters + 1);
+      expect(summary.runes.length, NdefDecoder.maximumSummaryCharacters);
       expect(summary.endsWith('…'), isTrue);
     });
 
