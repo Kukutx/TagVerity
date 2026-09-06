@@ -4,22 +4,29 @@ import '../../core/constants/app_constants.dart';
 import '../../core/utils/byte_utils.dart';
 import '../models/batch_summary.dart';
 import '../models/nfc_scan.dart';
+import 'scan_contract.dart';
 import 'tag_assessor.dart';
 
 abstract final class ReportEncoder {
-  static Map<String, Object?> exportEnvelope(
-    List<NfcScan> scans,
-  ) => <String, Object?>{
-    'schemaVersion': AppConstants.exportSchemaVersion,
-    'app': AppConstants.appName,
-    'appVersion': AppConstants.appVersion,
-    'exportedAt': DateTime.now().toUtc().toIso8601String(),
-    'readOnlyScope': true,
-    'scans': scans.map((NfcScan scan) => scan.toJson()).toList(growable: false),
-  };
+  static Map<String, Object?> exportEnvelope(List<NfcScan> scans) {
+    ScanContract.validateAll(scans);
+    return <String, Object?>{
+      'schemaVersion': AppConstants.exportSchemaVersion,
+      'app': AppConstants.appName,
+      'appVersion': AppConstants.appVersion,
+      'exportedAt': DateTime.now().toUtc().toIso8601String(),
+      'readOnlyScope': true,
+      'scans': scans
+          .map((NfcScan scan) => scan.toJson())
+          .toList(growable: false),
+    };
+  }
+
   static String prettyJson(Object? value) =>
       const JsonEncoder.withIndent('  ').convert(value);
+
   static String batchCsv(List<NfcScan> scans, {BatchSummary? summary}) {
+    ScanContract.validateAll(scans);
     final BatchSummary resolvedSummary =
         summary ?? BatchSummary.fromScans(scans);
     final Set<String> repeated = resolvedSummary.repeatedFingerprints;
@@ -51,5 +58,6 @@ abstract final class ReportEncoder {
 
   static String timestampForFilename() =>
       DateTime.now().toUtc().toIso8601String().replaceAll(':', '-');
+
   static String _csv(String value) => '"${value.replaceAll('"', '""')}"';
 }
