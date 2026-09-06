@@ -75,6 +75,33 @@ void main() {
     expect(jsonEncode(event.data), isNot(contains('should not be retained')));
   });
 
+  test('diagnostics nested sanitized data is immutable after retention', () {
+    final DiagnosticsBuffer buffer = DiagnosticsBuffer();
+    buffer.add(
+      AppDiagnosticLevel.info,
+      'snapshot',
+      'snapshot test',
+      data: <String, Object?>{
+        'nested': <String, Object?>{
+          'values': <Object?>['safe', 42],
+        },
+      },
+    );
+
+    final DiagnosticEvent event = buffer.events.single;
+    final Map<String, Object?> nested =
+        event.data['nested']! as Map<String, Object?>;
+    final List<Object?> values = nested['values']! as List<Object?>;
+    final String before = jsonEncode(event.toJson());
+
+    expect(
+      () => nested['new'] = 'late mutation',
+      throwsA(isA<UnsupportedError>()),
+    );
+    expect(() => values.add('late mutation'), throwsA(isA<UnsupportedError>()));
+    expect(jsonEncode(event.toJson()), before);
+  });
+
   test('diagnostics cap retains only the newest events', () {
     final DiagnosticsBuffer buffer = DiagnosticsBuffer();
     for (int index = 0; index < 120; index++) {

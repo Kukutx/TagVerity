@@ -30,6 +30,7 @@
 - Added standard NFC Forum Type 4 / NDEF AID `D2760000850101` for iOS without claiming arbitrary ISO 7816 application discovery.
 - Added recursive diagnostics sanitization, bounded/normalized platform-error text (500 Unicode characters with control/whitespace cleanup), NFC availability timeout/failure handling, and false-success protection for clipboard copies.
 - Bounded individual diagnostic strings, collections, and nesting depth so malformed runtime data cannot inflate troubleshooting exports.
+- Sanitized diagnostic nested maps/lists are now recursively immutable snapshots, preventing retained/redacted event data from being changed later through consumer references before export.
 - Fixed a narrow-screen / large-text `SectionCard` overflow found by a 320px + 200% text-scale stress test.
 - Added per-process scan sequencing to event IDs to avoid timestamp-collision keys.
 ### Reliability, privacy, and performance

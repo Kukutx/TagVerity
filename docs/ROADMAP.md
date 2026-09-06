@@ -45,7 +45,7 @@ TagVerity is developed **core-first**. Reliability, clear NFC semantics, privacy
 - [x] JSON export for scans/history and CSV export for batches validate the shared scan contract before encoding; preparation failures surface through the global error path instead of false success or uncaught exceptions.
 - [x] Native Android/iOS sharing with failure reporting, isolated export directories, and 24-hour stale temporary-export cleanup.
 - [x] Android app-data backup/device-transfer exclusions for local history/settings with validator coverage.
-- [x] Privacy-safe diagnostics.
+- [x] Privacy-safe diagnostics with bounded/redacted recursively immutable event snapshots.
 ### UX and quality
 - [x] Global error banner visible from Inspect, Batch, History, and Settings.
 - [x] Simplified Settings: NDEF + privacy controls; diagnostics moved to a dedicated page.
