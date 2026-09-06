@@ -139,6 +139,32 @@ class SettingsPage extends StatelessWidget {
                         'Apply privacy settings to saved history',
                       ),
                     ),
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: settingsBusy || controller.historyBusy
+                          ? null
+                          : () async {
+                              final bool? confirmed =
+                                  await _confirmDeleteSavedHistory(context);
+                              if (confirmed != true || !context.mounted) {
+                                return;
+                              }
+                              final bool deleted = await controller
+                                  .deleteSavedHistoryDuringPrivacyRecovery();
+                              if (deleted && context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Saved history deleted; apply the current '
+                                      'privacy settings before scanning',
+                                    ),
+                                  ),
+                                );
+                              }
+                            },
+                      icon: const Icon(Icons.delete_forever_rounded),
+                      label: const Text('Delete saved history instead'),
+                    ),
                   ],
                   const SizedBox(height: 8),
                   OutlinedButton.icon(
@@ -232,6 +258,30 @@ class SettingsPage extends StatelessWidget {
         ),
       );
     }
+  }
+
+  Future<bool?> _confirmDeleteSavedHistory(BuildContext context) {
+    return showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) => AlertDialog(
+        title: const Text('Delete saved history?'),
+        content: const Text(
+          'This permanently deletes all saved scans without loading them. '
+          'Scanning will remain paused until you apply the current privacy '
+          'settings.',
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<bool?> _confirmSensitiveSetting(

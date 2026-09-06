@@ -632,6 +632,78 @@ void main() {
     controller.dispose();
   });
 
+  test(
+    'privacy recovery can delete saved history without loading it',
+    () async {
+      final NfcScan original = _scan();
+      final _Reader reader = _Reader(scan: _scan());
+      final _MemoryRepository repository = _MemoryRepository(
+        initialHistory: <NfcScan>[original],
+        failLoadSettings: true,
+      );
+      final NfcScanController controller = NfcScanController(
+        readerService: reader,
+        repository: repository,
+        exportService: _NoopExportService(),
+      );
+
+      await controller.initialize();
+
+      final bool deleted = await controller
+          .deleteSavedHistoryDuringPrivacyRecovery();
+
+      expect(deleted, isTrue);
+      expect(repository.clearHistoryCalls, 1);
+      expect(repository.loadHistoryCalls, 0);
+      expect(repository.saveHistoryCalls, 0);
+      expect(repository.history, isEmpty);
+      expect(controller.history, isEmpty);
+      expect(controller.privacySettingsRecoveryRequired, isTrue);
+      expect(controller.errorMessage, contains('Saved history was deleted'));
+
+      await controller.startScan();
+      expect(reader.startCalls, 0);
+
+      expect(
+        await controller.applyCurrentPrivacySettingsToSavedHistory(),
+        isTrue,
+      );
+      expect(controller.privacySettingsRecoveryRequired, isFalse);
+      expect(repository.loadHistoryCalls, 1);
+      expect(controller.history, isEmpty);
+      controller.dispose();
+    },
+  );
+
+  test('failed recovery deletion keeps hidden saved history intact', () async {
+    final NfcScan original = _scan();
+    final _MemoryRepository repository = _MemoryRepository(
+      initialHistory: <NfcScan>[original],
+      failLoadSettings: true,
+      failClearHistory: true,
+    );
+    final NfcScanController controller = NfcScanController(
+      readerService: _Reader(),
+      repository: repository,
+      exportService: _NoopExportService(),
+    );
+
+    await controller.initialize();
+
+    final bool deleted = await controller
+        .deleteSavedHistoryDuringPrivacyRecovery();
+
+    expect(deleted, isFalse);
+    expect(repository.clearHistoryCalls, 1);
+    expect(repository.loadHistoryCalls, 0);
+    expect(repository.history, hasLength(1));
+    expect(repository.history.single.uidHex, original.uidHex);
+    expect(controller.history, isEmpty);
+    expect(controller.privacySettingsRecoveryRequired, isTrue);
+    expect(controller.errorMessage, contains('Could not delete saved history'));
+    controller.dispose();
+  });
+
   test('clipboard failures do not report false success', () async {
     final TestDefaultBinaryMessenger messenger =
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
@@ -778,12 +850,14 @@ final class _MemoryRepository implements ScanHistoryRepository {
   final Completer<void> saveSettingsStarted = Completer<void>();
   final Completer<void> releaseFirstSaveSettings = Completer<void>();
   int saveSettingsCalls = 0;
+  int clearHistoryCalls = 0;
   int loadHistoryCalls = 0;
   int saveHistoryCalls = 0;
   List<NfcScan> history;
   ScanSettings settings;
   @override
   Future<void> clearHistory() async {
+    clearHistoryCalls++;
     if (failClearHistory) throw StateError('disk unavailable');
     history = <NfcScan>[];
   }

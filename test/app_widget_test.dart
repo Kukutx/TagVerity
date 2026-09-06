@@ -127,6 +127,51 @@ void main() {
   });
 
   testWidgets(
+    'privacy recovery confirms deletion before clearing hidden history',
+    (WidgetTester tester) async {
+      final _WidgetRepository repository = _WidgetRepository(
+        failLoadSettings: true,
+        initialHistory: <NfcScan>[_stressScan()],
+      );
+      final NfcScanController controller = await _controller(
+        repository: repository,
+      );
+      addTearDown(controller.dispose);
+
+      await tester.pumpWidget(TagVerityApp(controller: controller));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.settings_rounded));
+      await tester.pumpAndSettle();
+
+      final Finder deleteButton = find.text('Delete saved history instead');
+      await tester.scrollUntilVisible(deleteButton, 200);
+      await tester.pumpAndSettle();
+
+      await tester.tap(deleteButton);
+      await tester.pumpAndSettle();
+      expect(find.text('Delete saved history?'), findsOneWidget);
+      expect(find.textContaining('without loading them'), findsOneWidget);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(repository.history, hasLength(1));
+      expect(controller.privacySettingsRecoveryRequired, isTrue);
+
+      await tester.tap(deleteButton);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+
+      expect(repository.history, isEmpty);
+      expect(controller.privacySettingsRecoveryRequired, isTrue);
+      expect(
+        find.textContaining('Saved history deleted; apply the current'),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
     'settings recovery flow stays usable on a narrow large-text screen',
     (WidgetTester tester) async {
       tester.view.physicalSize = const Size(320, 720);
