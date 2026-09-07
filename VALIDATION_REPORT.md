@@ -56,7 +56,7 @@ The current direct dependencies are already at their latest resolvable versions.
 - NDEF Text and URI decoding, strict UTF-8/UTF-16 handling, Text-RTD reserved-bit validation, UTF-16 surrogate-pair validation, valid whitespace-only text handling, rejection of unsafe C0/DEL/C1 display controls while preserving Tab/LF/CR, malformed payload handling, unknown URI prefixes, and summaries bounded to 300 Unicode characters total including any ellipsis.
 - PASS / LIMITED / REVIEW semantics where non-NDEF tags can still pass and user-disabled NDEF reading is LIMITED rather than mislabeled as unsupported.
 - Manual Batch and continuous Batch scanning without a fixed rearm delay.
-- Cached single-pass Batch summary metrics.
+- Cached single-pass Batch summary metrics with construction restricted to `fromScans`/`empty`; repeated-fingerprint state is immutable and contradictory externally assembled summaries cannot be created.
 - Lazy Batch and History list construction for larger datasets.
 - Global error visibility from every core tab.
 - Serialized settings mutations merge against the latest committed state so rapid toggles cannot overwrite one another.

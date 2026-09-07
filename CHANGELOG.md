@@ -34,7 +34,7 @@
 - Fixed a narrow-screen / large-text `SectionCard` overflow found by a 320px + 200% text-scale stress test.
 - Added per-process scan sequencing to event IDs to avoid timestamp-collision keys.
 ### Reliability, privacy, and performance
-- Added a cached one-pass `BatchSummary` for quality and tri-state identity metrics; `stable`, `sessionOnly`, and `unknown` are counted separately so unknown identity is never mislabeled as session-only.
+- Added a cached one-pass `BatchSummary` for quality and tri-state identity metrics; `stable`, `sessionOnly`, and `unknown` are counted separately so unknown identity is never mislabeled as session-only. Summary construction is now closed over `fromScans`/`empty`, preventing callers from creating contradictory counters or injecting a mutable repeated-fingerprint set.
 - Switched Batch and History results to lazy list rendering and stopped building/listening to all four bottom-navigation pages at once.
 - Added a global error banner so scan, storage, settings, and export failures are visible from every main tab.
 - Made scan-history persistence transactional: failed saves no longer create history that appears saved until app restart.

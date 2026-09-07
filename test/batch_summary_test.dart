@@ -29,6 +29,10 @@ void main() {
       );
       expect(summary.distinctComparableIds, 2);
       expect(summary.repeatedFingerprints, <String>{'same'});
+      expect(
+        () => summary.repeatedFingerprints.add('late-mutation'),
+        throwsA(isA<UnsupportedError>()),
+      );
     },
   );
 }

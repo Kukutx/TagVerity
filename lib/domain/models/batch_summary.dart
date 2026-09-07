@@ -4,7 +4,7 @@ import 'tag_assessment.dart';
 import 'tag_identity_stability.dart';
 
 final class BatchSummary {
-  const BatchSummary({
+  const BatchSummary._({
     required this.total,
     required this.healthy,
     required this.limited,
@@ -53,7 +53,7 @@ final class BatchSummary {
         .where((MapEntry<String, int> entry) => entry.value > 1)
         .map((MapEntry<String, int> entry) => entry.key)
         .toSet();
-    return BatchSummary(
+    return BatchSummary._(
       total: total,
       healthy: healthy,
       limited: limited,
@@ -66,7 +66,7 @@ final class BatchSummary {
     );
   }
 
-  static const BatchSummary empty = BatchSummary(
+  static const BatchSummary empty = BatchSummary._(
     total: 0,
     healthy: 0,
     limited: 0,
