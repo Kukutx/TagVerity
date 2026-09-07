@@ -11,6 +11,16 @@ void main() {
     'lib/domain/services/diagnostics_buffer.dart',
   ).readAsStringSync();
   final String ciWorkflow = File('.github/workflows/ci.yml').readAsStringSync();
+  final List<File> workflowFiles = Directory('.github/workflows')
+      .listSync()
+      .whereType<File>()
+      .where(
+        (File file) =>
+            file.path.endsWith('.yml') || file.path.endsWith('.yaml'),
+      )
+      .toList(growable: false);
+  final String dependabotConfig = File('.github/dependabot.yml')
+      .readAsStringSync();
   final Map<String, dynamic> scanSchema = jsonDecode(
     File('docs/nfc-scan-export.schema.json').readAsStringSync(),
   ) as Map<String, dynamic>;
@@ -252,6 +262,40 @@ void main() {
   }
   if (RegExp(r'timeout-minutes:\s*20').allMatches(ciWorkflow).length < 2) {
     _fail('Both CI build jobs must keep a bounded 20-minute timeout.');
+  }
+
+  final RegExp remoteActionUsePattern = RegExp(
+    r'^\s*(?:-\s*)?uses:\s*([^@\s]+)@([^\s#]+)',
+    multiLine: true,
+  );
+  final RegExp immutableActionRef = RegExp(r'^[0-9a-f]{40}$');
+  bool foundRemoteAction = false;
+  for (final File workflowFile in workflowFiles) {
+    final String workflow = workflowFile.readAsStringSync();
+    for (final RegExpMatch match in remoteActionUsePattern.allMatches(
+      workflow,
+    )) {
+      foundRemoteAction = true;
+      final String action = match.group(1)!;
+      final String reference = match.group(2)!;
+      if (!immutableActionRef.hasMatch(reference)) {
+        _fail(
+          'GitHub Action $action in ${workflowFile.path} must be pinned to a '
+          '40-character commit SHA.',
+        );
+      }
+    }
+  }
+  if (!foundRemoteAction) {
+    _fail('GitHub workflows must contain at least one pinned remote Action.');
+  }
+  if (!RegExp(
+    r'^\s*-\s+package-ecosystem:\s+github-actions\s*$',
+    multiLine: true,
+  ).hasMatch(dependabotConfig)) {
+    _fail(
+      'Dependabot must keep GitHub Actions updates enabled for pinned actions.',
+    );
   }
 
   final String androidManifest = File(

@@ -6,7 +6,7 @@ TagVerity is a public, privacy-first, read-only NFC Inspector / Tag Checker / Ba
 Project compatibility and release baseline:
 - Flutter **>= 3.47.1**
 - Dart **>= 3.13.1**
-- CI pinned to Flutter **3.47.1 / Dart 3.13.1**
+- CI pinned to Flutter **3.47.1 / Dart 3.13.1**; remote GitHub Actions are pinned to immutable 40-character commit SHAs and maintained by Dependabot
 - Android application ID: `dev.kukutx.tagverity`
 - Android minSdk: 24
 - Android targetSdk / compileSdk: 36
@@ -22,13 +22,15 @@ GitHub Actions is the authoritative software merge gate. It requires:
 - a minimum **75% line coverage** floor;
 - Android debug APK compilation;
 - unsigned Android release AAB compilation for `android-arm,android-arm64` plus ARM32/ARM64 runtime-entry and final merged-manifest NFC/no-INTERNET verification;
-- unsigned iOS **release** compilation on macOS.
+- unsigned iOS **release** compilation on macOS;
+- validator-enforced immutable GitHub Action refs with Dependabot `github-actions` updates retained.
 A green CI run does not replace physical NFC hardware testing.
 ## Local no-emulator validation for the deep-audit hardening work
 Verified on the maintainer machine without launching an emulator:
 - `dart run tool/validate_project.dart`: passed.
 - Release-metadata validator negative probes: passed for missing Android NFC permission, broadened FileProvider scope, broken iOS Type 4 AID, broken TAG entitlement, broken Xcode entitlement wiring, and removal of the CI no-INTERNET marker; each mutation failed validation and was restored.
 - Diagnostics-v4 validator negative probes: passed for a missing privacy-recovery field, event-cap drift, diagnostic string-bound drift, nested collection-limit drift, and nesting-depth drift; each mutation failed validation and the schema was restored.
+- CI action-pin validator negative probes: passed for a floating Action in the primary workflow, a newly added secondary workflow containing a floating Action, and removal of the Dependabot `github-actions` ecosystem; every mutation failed validation and was restored.
 - strict maintainer bootstrap with `--strict-sdk --single-sdk`: passed against Flutter 3.47.1 / Dart 3.13.1.
 - `flutter analyze`: **0 issues**.
 - `flutter test --coverage`: **175/175 tests passed**.
