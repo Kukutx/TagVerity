@@ -1,5 +1,5 @@
 # TagVerity validation report
-Validation date: 2026-09-06
+Validation date: 2026-09-12
 App version: 1.0.0+1
 ## Current validation baseline
 TagVerity is a public, privacy-first, read-only NFC Inspector / Tag Checker / Batch Scanner.
@@ -43,7 +43,7 @@ Verified on the maintainer machine without launching an emulator:
 - A detached no-secrets CI simulation with no `android/key.properties` also produced the same **32.1 MB** release AAB and passed the ARM32/ARM64/no-x86 runtime-entry check, confirming the release compile gate does not require repository signing secrets.
 - Release AAB signature verification: `jar verified`. The local upload certificate is self-signed, which is normal for an Android upload key; rebuild final store artifacts from merged `main`.
 - iOS `Info.plist` and entitlements parse successfully; `Info.plist` includes NFC Forum Type 3 / NDEF FeliCa system code `12FC` and standard NFC Forum Type 4 / NDEF ISO 7816 AID `D2760000850101`.
-The current direct dependencies are already at their latest resolvable versions. Flutter 3.47.1 emits a future Built-in Kotlin migration warning for the upstream `nfc_manager` plugin; there is no newer resolvable plugin release in the current dependency graph, and the warning does not fail the current Android build.
+The current direct dependencies are at their latest resolvable versions. Because upstream `nfc_manager` 4.2.1 still applies the legacy Kotlin Gradle Plugin, TagVerity temporarily vendors that exact stable runtime source and applies only the Android build-metadata migration needed for Flutter Built-in Kotlin. Local Flutter 3.47.3 Android debug compilation passes with `android.builtInKotlin=true` and no KGP compatibility warning. The validator pins the override/version/license/build contract so the patch cannot silently drift; the override is removed when upstream ships the equivalent fix.
 ## Core behavior covered by code and automated tests
 - NFC-A / NFC-B (ISO 14443), NFC-V (ISO 15693), and NFC-F (ISO 18092) polling.
 - iOS NFC-F intentionally limited to the standard NFC Forum Type 3 / NDEF system code `12FC`.
