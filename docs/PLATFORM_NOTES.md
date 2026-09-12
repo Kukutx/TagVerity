@@ -8,8 +8,8 @@
 - UID and technology availability depend on the phone NFC controller and Android stack.
 - MIFARE Classic support is hardware-dependent; TagVerity reports only what the phone exposes.
 - Antenna position varies by device. Thick cases, metal accessories, or multiple contactless cards can reduce read reliability.
-### Current Flutter/Kotlin upstream note
-With Flutter 3.47.1, the current `nfc_manager` release emits a warning that the plugin still applies the Kotlin Gradle Plugin instead of Flutter's future Built-in Kotlin path. `flutter pub outdated` confirms TagVerity's direct dependencies are currently up to date. This is an upstream future-compatibility warning, not a current build failure.
+### Current Flutter/Kotlin compatibility note
+TagVerity uses the upstream `nfc_manager` 4.2.1 runtime source with a reviewed local Android build-metadata patch so AGP 9 runs with Flutter Built-in Kotlin instead of applying the legacy Kotlin Gradle Plugin. The local override keeps the upstream MIT license and is guarded by `tool/validate_project.dart`. Remove it once an official `nfc_manager` release includes Built-in Kotlin support and the normal analyze/test/Android/iOS build gates pass. Upstream tracking: `okadan/flutter-nfc-manager#276` and PR `#277`.
 ## iOS
 - Core NFC presents the system scan sheet; TagVerity cannot provide Android-style silent continuous polling.
 - Polling covers ISO 14443 and ISO 15693.

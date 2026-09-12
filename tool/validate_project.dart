@@ -3,6 +3,13 @@ import 'dart:io';
 
 void main() {
   final String pubspec = File('pubspec.yaml').readAsStringSync();
+  final String vendoredNfcPubspec = File('third_party/nfc_manager/pubspec.yaml')
+      .readAsStringSync();
+  final String vendoredNfcAndroidGradle = File(
+    'third_party/nfc_manager/android/build.gradle.kts',
+  ).readAsStringSync();
+  final String androidGradleProperties = File('android/gradle.properties')
+      .readAsStringSync();
   final String constants = File('lib/core/constants/app_constants.dart')
       .readAsStringSync();
   final String scanContract = File('lib/domain/services/scan_contract.dart')
@@ -42,6 +49,56 @@ void main() {
       'AppConstants=${appVersion.group(1)}',
     );
   }
+  final RegExpMatch? declaredNfcManager = RegExp(
+    r'^\s{2}nfc_manager:\s*([^\s]+)\s*$',
+    multiLine: true,
+  ).firstMatch(pubspec);
+  final RegExpMatch? vendoredNfcVersion = RegExp(
+    r'^version:\s*([^\s]+)\s*$',
+    multiLine: true,
+  ).firstMatch(vendoredNfcPubspec);
+  if (declaredNfcManager == null || vendoredNfcVersion == null) {
+    _fail('Could not locate nfc_manager dependency/version metadata.');
+  }
+  if (declaredNfcManager.group(1) != vendoredNfcVersion.group(1)) {
+    _fail(
+      'Vendored nfc_manager version drift: declared=${declaredNfcManager.group(1)}, '
+      'vendored=${vendoredNfcVersion.group(1)}',
+    );
+  }
+  if (!RegExp(
+    r'dependency_overrides:\s*\n\s{2}nfc_manager:\s*\n\s{4}path:\s*third_party/nfc_manager',
+    multiLine: true,
+  ).hasMatch(pubspec)) {
+    _fail(
+      'nfc_manager must resolve through the reviewed local compatibility patch.',
+    );
+  }
+  if (!File('third_party/nfc_manager/LICENSE').existsSync()) {
+    _fail('Vendored nfc_manager must retain its upstream MIT license.');
+  }
+  if (vendoredNfcAndroidGradle.contains('id("kotlin-android")') ||
+      vendoredNfcAndroidGradle.contains('id("org.jetbrains.kotlin.android")') ||
+      vendoredNfcAndroidGradle.contains(
+        'apply(plugin = "org.jetbrains.kotlin.android")',
+      )) {
+    _fail(
+      'Vendored nfc_manager must not apply the legacy Kotlin Gradle Plugin.',
+    );
+  }
+  if (!vendoredNfcAndroidGradle.contains('KotlinAndroidProjectExtension') ||
+      !vendoredNfcAndroidGradle.contains('JvmTarget.JVM_17')) {
+    _fail(
+      'Vendored nfc_manager Built-in Kotlin compiler settings are missing.',
+    );
+  }
+  if (!RegExp(
+    r'^android\.builtInKotlin=true\s*$',
+    multiLine: true,
+  ).hasMatch(androidGradleProperties)) {
+    _fail('Android must keep Built-in Kotlin enabled.');
+  }
+
   final int scanVersion = _constantInt(constants, 'exportSchemaVersion');
   final int diagnosticsVersion = _constantInt(
     constants,

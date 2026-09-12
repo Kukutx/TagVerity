@@ -22,6 +22,10 @@ dev_dependencies:
   flutter_lints: 6.0.0
   shared_preferences_platform_interface: 2.4.2
 
+dependency_overrides:
+  nfc_manager:
+    path: third_party/nfc_manager
+
 flutter:
   uses-material-design: true
   assets:

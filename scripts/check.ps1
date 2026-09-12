@@ -1,5 +1,7 @@
 $ErrorActionPreference = "Stop"
 Set-Location (Join-Path $PSScriptRoot "..")
+flutter pub get
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 dart format --output=none --set-exit-if-changed lib test tool
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 dart run tool/validate_project.dart

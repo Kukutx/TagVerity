@@ -45,6 +45,8 @@
 - Native Android/iOS sharing now removes only `tagverity-*` temporary export files older than 24 hours, avoiding premature deletion while a receiving app may still be reading a report; iOS exports are isolated under a TagVerity-specific temporary subdirectory.
 - Hardened NDEF media summaries so binary MIME payloads are not displayed as decoded text.
 ### UX and maintainability
+- Migrated Android to Flutter Built-in Kotlin despite upstream `nfc_manager` 4.2.1 not yet shipping the migration: TagVerity temporarily vendors the exact stable runtime source, preserves its MIT license, applies only reviewed Android build metadata, validates the override/version contract, and removes the legacy `android.builtInKotlin=false` compatibility flag.
+- Local check scripts now resolve dependencies before formatting, avoiding fresh-clone analysis-option resolution noise; the dependency lock also refreshes the latest resolvable `platform` transitive package.
 - Simplified Settings to NDEF reading plus privacy controls; moved runtime diagnostics to a dedicated page.
 - Moved “show technical fields” from a global setting to a local toggle on Tag Details.
 - Removed user-facing scan-timeout, history-limit, and NFC-sound settings in favor of stable product defaults.

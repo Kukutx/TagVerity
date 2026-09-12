@@ -38,7 +38,7 @@ flutter analyze
 flutter test
 flutter build apk --debug
 ```
-GitHub Actions also compiles iOS with `flutter build ios --debug --no-codesign`. A simulator is not required for these checks. Physical NFC hardware is required only for RF/tag compatibility validation.
+GitHub Actions also compiles iOS with `flutter build ios --release --no-codesign`. A simulator is not required for these checks. Physical NFC hardware is required only for RF/tag compatibility validation.
 ## Store build
 Windows maintainer build using the private upload key:
 ```powershell
