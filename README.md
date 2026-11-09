@@ -21,11 +21,11 @@ TagVerity is intentionally read-only. It does not implement:
 A successful scan only confirms what the phone can read. It does not prove ownership, authenticity, access rights, balance, ticket validity, or authorization in a proprietary system.
 ## Toolchain
 Project compatibility baseline:
-- Flutter **>= 3.47.7**
-- Dart **>= 3.13.5**
+- Flutter **>= 3.47.8**
+- Dart **>= 3.13.7**
 - Android minSdk **24**
 - iOS minimum **13.0**
-CI is pinned to Flutter **3.47.7 / Dart 3.13.5** for reproducibility. The maintainer machine can additionally enforce its one-SDK policy with:
+CI is pinned to Flutter **3.47.8 / Dart 3.13.7** for reproducibility. The maintainer machine can additionally enforce its one-SDK policy with:
 ```powershell
 .\setup.ps1 --strict-sdk --single-sdk
 ```

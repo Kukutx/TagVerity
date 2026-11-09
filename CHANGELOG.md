@@ -47,7 +47,8 @@
 ### UX and maintainability
 - Migrated Android to Flutter Built-in Kotlin despite upstream `nfc_manager` 4.2.1 not yet shipping the migration: TagVerity temporarily vendors the exact stable runtime source, preserves its MIT license, applies only reviewed Android build metadata, validates the override/version contract, and removes the legacy `android.builtInKotlin=false` compatibility flag.
 - Local check scripts now resolve dependencies before formatting, avoiding fresh-clone analysis-option resolution noise; the dependency lock also refreshes the latest resolvable `platform` transitive package.
-- Raised the project baseline to Flutter 3.47.7 / Dart 3.13.5 (CI pin, pubspec SDK floor, bootstrap checks, and the diagnostics page) because `ndef_record` 1.5.0 requires Dart ^3.13.3; the same dependency update moves `crypto` to 3.0.8 and `shared_preferences` to 2.5.6.
+- Raised the project baseline to Flutter 3.47.8 / Dart 3.13.7 (CI pin, pubspec SDK floor, bootstrap checks, and the diagnostics page) because `ndef_record` 1.5.0 requires Dart ^3.13.3; the same dependency update moves `crypto` to 3.0.8 and `shared_preferences` to 2.5.6.
+- Raised the project baseline again to Flutter 3.47.8 / Dart 3.13.7 (CI pin, pubspec SDK floor, bootstrap checks, and the diagnostics page); no dependency or app-code changes.
 - Simplified Settings to NDEF reading plus privacy controls; moved runtime diagnostics to a dedicated page.
 - Moved “show technical fields” from a global setting to a local toggle on Tag Details.
 - Removed user-facing scan-timeout, history-limit, and NFC-sound settings in favor of stable product defaults.

@@ -1,7 +1,7 @@
 # Release checklist
 ## Toolchain and automated validation
-- [ ] Flutter is compatible with the project baseline (>= 3.47.7) and Dart >= 3.13.5.
-- [ ] Maintainer release machine: `setup.ps1 --strict-sdk --single-sdk` passes, enforcing Flutter 3.47.7 / Dart 3.13.5 from the intended single SDK.
+- [ ] Flutter is compatible with the project baseline (>= 3.47.8) and Dart >= 3.13.7.
+- [ ] Maintainer release machine: `setup.ps1 --strict-sdk --single-sdk` passes, enforcing Flutter 3.47.8 / Dart 3.13.7 from the intended single SDK.
 - [ ] `flutter pub get` succeeds.
 - [ ] `dart format --output=none --set-exit-if-changed lib test tool` succeeds.
 - [ ] `dart run tool/validate_project.dart` succeeds.

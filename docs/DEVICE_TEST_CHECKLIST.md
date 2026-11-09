@@ -1,7 +1,7 @@
 # Physical device test checklist
 This checklist is the final v1.0 gate that automated tests cannot replace. Software validation does not require an emulator; the items below require real NFC hardware and, for iOS, a signed build.
 ## Before testing
-- [ ] Maintainer release machine passes `setup.ps1 --strict-sdk --single-sdk` (Flutter 3.47.7 / Dart 3.13.5).
+- [ ] Maintainer release machine passes `setup.ps1 --strict-sdk --single-sdk` (Flutter 3.47.8 / Dart 3.13.7).
 - [ ] Android/iOS platform projects are committed and configured.
 - [ ] NFC is enabled on the device.
 - [ ] Use at least one known standard NDEF tag for a baseline.
