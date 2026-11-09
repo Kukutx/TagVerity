@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
-const String _baselineFlutterVersion = '3.47.1';
-const String _baselineDartVersion = '3.13.1';
+const String _baselineFlutterVersion = '3.47.7';
+const String _baselineDartVersion = '3.13.5';
 Future<void> main(List<String> arguments) async {
   final bool skipChecks = arguments.contains('--skip-checks');
   final bool strictSdk = arguments.contains('--strict-sdk');
