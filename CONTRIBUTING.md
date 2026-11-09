@@ -2,7 +2,7 @@
 
 TagVerity is core-first: correctness, privacy, platform behavior, and clear NFC semantics take priority over adding more features. For substantial new user-facing features, open an issue first and explain the user problem.
 
-1. Use the project baseline: Flutter 3.47.7 / Dart 3.13.5.
+1. Use the project baseline: Flutter 3.47.8 / Dart 3.13.7.
 2. Do not add or require a second Flutter SDK for this project.
 3. Keep the default NFC path read-only.
 4. Keep platform/plugin objects inside `data/`.

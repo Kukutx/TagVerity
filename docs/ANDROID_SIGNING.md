@@ -11,7 +11,7 @@ Both files are excluded by `.gitignore` and must never be committed or shared pu
 .\scripts\build_store_android.ps1
 ```
 On the maintainer Windows machine this script also enforces:
-- exact Flutter 3.47.7 / Dart 3.13.5;
+- exact Flutter 3.47.8 / Dart 3.13.7;
 - the maintainer's one-SDK-on-PATH policy;
 - presence of the private upload keystore configuration.
 The open-source project itself does **not** require contributors to keep only one Flutter SDK installed.
