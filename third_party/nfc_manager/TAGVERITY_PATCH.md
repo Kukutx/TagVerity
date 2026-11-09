@@ -11,7 +11,7 @@ Local changes are intentionally limited to Android build metadata and the minimu
 - the Android plugin no longer applies `kotlin-android` / `org.jetbrains.kotlin.android`;
 - Kotlin compilation uses `KotlinAndroidProjectExtension.compilerOptions` with JVM 17;
 - the Android buildscript uses AGP 9.1.0 and KGP 2.4.0, matching TagVerity's Android toolchain;
-- the vendored package requires Flutter >= 3.44 / Dart >= 3.12, while TagVerity itself already requires Flutter >= 3.47.1 / Dart >= 3.13.1.
+- the vendored package requires Flutter >= 3.44 / Dart >= 3.12, while TagVerity itself already requires Flutter >= 3.47.7 / Dart >= 3.13.5.
 
 The Dart, Android runtime, and iOS runtime source from upstream 4.2.1 is otherwise unchanged.
 

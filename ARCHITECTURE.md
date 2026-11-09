@@ -44,7 +44,7 @@ History mutations update UI only after persistence succeeds. Failed writes there
 ## NFC safety boundary
 The generic NFC path remains read-only. New decoders or rules may interpret already-exposed public metadata, but TagVerity does not add arbitrary APDU/transceive consoles, authentication attempts, tag writing, cloning, relay/replay, or protected-memory extraction.
 ## Toolchain and open-source policy
-CI is pinned to Flutter 3.47.1 / Dart 3.13.1 for reproducibility. Open-source contributors may use compatible newer SDKs. The maintainer machine can opt into exact-version plus one-SDK-on-PATH enforcement with `--strict-sdk --single-sdk` without imposing that machine policy on contributors.
+CI is pinned to Flutter 3.47.7 / Dart 3.13.5 for reproducibility. Open-source contributors may use compatible newer SDKs. The maintainer machine can opt into exact-version plus one-SDK-on-PATH enforcement with `--strict-sdk --single-sdk` without imposing that machine policy on contributors.
 ## Test boundary
 - utilities, models, classifier, assessor, reports: unit tests;
 - controller/history/batch transactions: fake NFC/repository tests;
